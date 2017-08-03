@@ -1,5 +1,5 @@
 --[[
-	Edit Mod v0.2
+	Edit Mod v0.1
 ]]
 local function sign(x) -- different from math.sign never returns 0.
 	if x > 0 then
@@ -228,6 +228,7 @@ minetest.register_on_player_receive_fields(function(player, formname, fields)
 							end
 						end
 					end
+					minetest.close_formspec(player:get_player_name(), "edit:pasteType")
 					clipboard[player:get_player_name()].fillBlock1Pos = nil
 					clipboard[player:get_player_name()].fillBlock2Pos = nil
 				end
