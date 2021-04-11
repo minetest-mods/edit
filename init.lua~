@@ -27,7 +27,7 @@ minetest.register_node("edit:delete",{
 	on_place = function(itemstack, placer, pointed_thing)
 
 		-- add in priv check
-		local name = placer:get_player_name()
+		name = local name = placer:get_player_name()
 		if not minetest.check_player_privs(name, {edit = true}) then
 			minetest.chat_send_player(name, "You can't use an edit block without the edit privilege.")
 			return itemstack
@@ -83,7 +83,7 @@ minetest.register_node("edit:copy",{
 	groups = {snappy = 2, oddly_breakable_by_hand = 3},
 	on_place = function(itemstack, placer, pointed_thing)
 			-- add in priv check
-		local name = placer:get_player_name()
+		name = local name = placer:get_player_name()
 		if not minetest.check_player_privs(name, {edit = true}) then
 			minetest.chat_send_player(name, "You can't use an edit block without the edit privilege.")
 			return itemstack
@@ -154,7 +154,7 @@ minetest.register_node("edit:paste", {
 	groups = {snappy = 2, oddly_breakable_by_hand = 3},
 	on_place = function(itemstack, placer, pointed_thing)
 			-- add in priv check
-		local name = placer:get_player_name()
+		name = local name = placer:get_player_name()
 		if not minetest.check_player_privs(name, {edit = true}) then
 			minetest.chat_send_player(name, "You can't use an edit block without the edit privilege.")
 			return itemstack
@@ -187,7 +187,7 @@ minetest.register_node("edit:fill",{
 	groups = {snappy = 2, oddly_breakable_by_hand = 3},
 	on_place = function(itemstack, placer, pointed_thing)
 			-- add in priv check
-		local name = placer:get_player_name()
+		name = local name = placer:get_player_name()
 		if not minetest.check_player_privs(name, {edit = true}) then
 			minetest.chat_send_player(name, "You can't use an edit block without the edit privilege.")
 			return itemstack
