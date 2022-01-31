@@ -1,6 +1,14 @@
 --[[
 	Edit Mod v0.1
 ]]
+
+--Add priv
+minetest.register_privilege("edit", {
+	description = "Let you use edit blocks",
+	give_to_singleplayer= true,
+})
+
+--end add priv 
 local function sign(x) -- different from math.sign never returns 0.
 	if x > 0 then
 		return 1
@@ -17,6 +25,14 @@ minetest.register_node("edit:delete",{
 	groups = {snappy = 2, oddly_breakable_by_hand = 3},
 	tiles = {"edit_delete.png"},
 	on_place = function(itemstack, placer, pointed_thing)
+
+		-- add in priv check
+		local name = placer:get_player_name()
+		if not minetest.check_player_privs(name, {edit = true}) then
+			minetest.chat_send_player(name, "You can't use an edit block without the edit privilege.")
+			return itemstack
+		end
+		--end priv check
 		if clipboard[placer:get_player_name()].deleteBlock1Pos then
 			local p1 = clipboard[placer:get_player_name()].deleteBlock1Pos
 			local p2 = pointed_thing.above
@@ -66,6 +82,13 @@ minetest.register_node("edit:copy",{
 	inventory_image = "edit_copy.png",
 	groups = {snappy = 2, oddly_breakable_by_hand = 3},
 	on_place = function(itemstack, placer, pointed_thing)
+			-- add in priv check
+		local name = placer:get_player_name()
+		if not minetest.check_player_privs(name, {edit = true}) then
+			minetest.chat_send_player(name, "You can't use an edit block without the edit privilege.")
+			return itemstack
+		end
+		--end priv check
 		if clipboard[placer:get_player_name()].copyBlock1Pos then
 			clipboard[placer:get_player_name()].copyData = {} -- clear out old copy data
 			local copyData = clipboard[placer:get_player_name()].copyData
@@ -130,6 +153,13 @@ minetest.register_node("edit:paste", {
 	inventory_image = "edit_paste.png",
 	groups = {snappy = 2, oddly_breakable_by_hand = 3},
 	on_place = function(itemstack, placer, pointed_thing)
+			-- add in priv check
+		local name = placer:get_player_name()
+		if not minetest.check_player_privs(name, {edit = true}) then
+			minetest.chat_send_player(name, "You can't use an edit block without the edit privilege.")
+			return itemstack
+		end
+		--end priv check
 		local copyData = clipboard[placer:get_player_name()].copyData
 		local pos = pointed_thing.above
 		for x, yTable in pairs(copyData) do
@@ -156,6 +186,13 @@ minetest.register_node("edit:fill",{
 	inventory_image = "edit_fill.png",
 	groups = {snappy = 2, oddly_breakable_by_hand = 3},
 	on_place = function(itemstack, placer, pointed_thing)
+			-- add in priv check
+		local name = placer:get_player_name()
+		if not minetest.check_player_privs(name, {edit = true}) then
+			minetest.chat_send_player(name, "You can't use an edit block without the edit privilege.")
+			return itemstack
+		end
+		--end priv check
 		if clipboard[placer:get_player_name()].fillBlock1Pos then
 			minetest.set_node(pointed_thing.above, {name = "edit:fill"})
 			clipboard[placer:get_player_name()].fillBlock2Pos = pointed_thing.above
