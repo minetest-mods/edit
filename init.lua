@@ -4,7 +4,7 @@
 
 --Add priv
 minetest.register_privilege("edit", {
-	description = "Let you use edit blocks",
+	description = "Let you use edit, copy, paste, delete blocks",
 	give_to_singleplayer= true,
 })
 
