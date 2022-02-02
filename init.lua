@@ -1,11 +1,12 @@
 --[[
-	Edit Mod v0.1
+	Edit Mod v0.2
 ]]
 
 --Add priv
 minetest.register_privilege("edit", {
 	description = "Let you use edit, copy, paste, delete blocks",
 	give_to_singleplayer= true,
+	give_to_admin = true,
 })
 
 --end add priv 
@@ -25,7 +26,7 @@ minetest.register_node("edit:delete",{
 	groups = {snappy = 2, oddly_breakable_by_hand = 3},
 	tiles = {"edit_delete.png"},
 	on_place = function(itemstack, placer, pointed_thing)
-
+		if not placer then return itemstack end
 		-- add in priv check
 		local name = placer:get_player_name()
 		if not minetest.check_player_privs(name, {edit = true}) then
@@ -82,6 +83,7 @@ minetest.register_node("edit:copy",{
 	inventory_image = "edit_copy.png",
 	groups = {snappy = 2, oddly_breakable_by_hand = 3},
 	on_place = function(itemstack, placer, pointed_thing)
+		if not placer then return itemstack end
 			-- add in priv check
 		local name = placer:get_player_name()
 		if not minetest.check_player_privs(name, {edit = true}) then
@@ -153,6 +155,7 @@ minetest.register_node("edit:paste", {
 	inventory_image = "edit_paste.png",
 	groups = {snappy = 2, oddly_breakable_by_hand = 3},
 	on_place = function(itemstack, placer, pointed_thing)
+		if not placer then return itemstack end
 			-- add in priv check
 		local name = placer:get_player_name()
 		if not minetest.check_player_privs(name, {edit = true}) then
@@ -186,6 +189,7 @@ minetest.register_node("edit:fill",{
 	inventory_image = "edit_fill.png",
 	groups = {snappy = 2, oddly_breakable_by_hand = 3},
 	on_place = function(itemstack, placer, pointed_thing)
+		if not placer then return itemstack end
 			-- add in priv check
 		local name = placer:get_player_name()
 		if not minetest.check_player_privs(name, {edit = true}) then
@@ -242,6 +246,7 @@ minetest.register_node("edit:fill",{
 	end
 })
 minetest.register_on_player_receive_fields(function(player, formname, fields)
+	if not player then return false end
 	if formname == "edit:pasteType" then
 		for key, value in pairs(fields) do
 			if
@@ -281,19 +286,23 @@ minetest.register_on_player_receive_fields(function(player, formname, fields)
 		end
 		return true
 	end
-    return false
+	return false
 end)
 
 clipboard = {};
 minetest.register_on_joinplayer(function(player)
-	clipboard[player:get_player_name()] = {
-		["fillBlock1Pos"] = nil,
-		["fillBlock2Pos"] = nil,
-		["copyBlock1Pos"] = nil,
-		["deleteBlock1Pos"] = nil,
-		["copyData"] = {},
-	};
+	if player then
+		clipboard[player:get_player_name()] = {
+			["fillBlock1Pos"] = nil,
+			["fillBlock2Pos"] = nil,
+			["copyBlock1Pos"] = nil,
+			["deleteBlock1Pos"] = nil,
+			["copyData"] = {},
+		};
+	end
 end);
 minetest.register_on_leaveplayer(function(player)
-	clipboard[player:get_player_name()] = nil
+	if player then
+		clipboard[player:get_player_name()] = nil
+	end
 end);
