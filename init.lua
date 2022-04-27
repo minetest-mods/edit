@@ -1,15 +1,28 @@
 --[[
-	Edit Mod v0.2
+	Edit Mod v0.3
 ]]
 
 --Add priv
 minetest.register_privilege("edit", {
-	description = "Let you use edit, copy, paste, delete blocks",
+	description = "Lets you use edit, copy, paste, delete blocks",
 	give_to_singleplayer= true,
 	give_to_admin = true,
 })
 
 --end add priv 
+
+-- add in priv check
+local function check_privilege(player)
+	local name = player:get_player_name()
+	if minetest.check_player_privs(name, {edit = true}) then
+		return true
+	else
+		minetest.chat_send_player(name, "You can't use an edit block without the edit privilege.")
+		return false
+	end
+end
+--end priv check
+
 local function sign(x) -- different from math.sign never returns 0.
 	if x > 0 then
 		return 1
@@ -20,25 +33,21 @@ local function sign(x) -- different from math.sign never returns 0.
 end
 
 -- Delete Block
-minetest.register_node("edit:delete",{
+minetest.register_node("edit:delete", {
 	description = "Delete",
 	inventory_image = "edit_delete.png",
 	groups = {snappy = 2, oddly_breakable_by_hand = 3},
 	tiles = {"edit_delete.png"},
 	on_place = function(itemstack, placer, pointed_thing)
 		if not placer then return itemstack end
-		-- add in priv check
-		local name = placer:get_player_name()
-		if not minetest.check_player_privs(name, {edit = true}) then
-			minetest.chat_send_player(name, "You can't use an edit block without the edit privilege.")
-			return itemstack
-		end
-		--end priv check
-		if clipboard[placer:get_player_name()].deleteBlock1Pos then
-			local p1 = clipboard[placer:get_player_name()].deleteBlock1Pos
+		
+		if not check_privilege(placer) then return itemstack end
+		
+		if clipboard[placer:get_player_name()].delete_block1_pos then
+			local p1 = clipboard[placer:get_player_name()].delete_block1_pos
 			local p2 = pointed_thing.above
 			
-			minetest.remove_node(p1);
+			minetest.remove_node(p1)
 			
 			p1.x = p1.x + math.sign(p2.x - p1.x)
 			p1.y = p1.y + math.sign(p2.y - p1.y)
@@ -50,26 +59,26 @@ minetest.register_node("edit:delete",{
 			for x = p1.x, p2.x, sign(p2.x - p1.x) do
 				for y = p1.y, p2.y, sign(p2.y - p1.y) do
 					for z = p1.z, p2.z, sign(p2.z - p1.z) do
-						minetest.remove_node({x=x, y=y, z=z});
+						minetest.remove_node(vector.new(x, y, z));
 					end
 				end
 			end
-			clipboard[placer:get_player_name()].deleteBlock1Pos = nil
+			clipboard[placer:get_player_name()].delete_block1_pos = nil
 		else
 			minetest.set_node(pointed_thing.above, {name = "edit:delete"})
-			clipboard[placer:get_player_name()].deleteBlock1Pos = pointed_thing.above
+			clipboard[placer:get_player_name()].delete_block1_pos = pointed_thing.above
 		end
 	end,
 	on_dig = function(pos, node, digger)
 		for name, value in pairs(clipboard) do
 			minetest.remove_node(pos);
 			if
-				clipboard[name].deleteBlock1Pos
-				and clipboard[name].deleteBlock1Pos.x == pos.x
-				and clipboard[name].deleteBlock1Pos.y == pos.y
-				and clipboard[name].deleteBlock1Pos.z == pos.z
+				clipboard[name].delete_block1_pos
+				and clipboard[name].delete_block1_pos.x == pos.x
+				and clipboard[name].delete_block1_pos.y == pos.y
+				and clipboard[name].delete_block1_pos.z == pos.z
 			then
-				clipboard[name].deleteBlock1Pos = nil
+				clipboard[name].delete_block1_pos = nil
 				break
 			end
 		end
@@ -84,17 +93,14 @@ minetest.register_node("edit:copy",{
 	groups = {snappy = 2, oddly_breakable_by_hand = 3},
 	on_place = function(itemstack, placer, pointed_thing)
 		if not placer then return itemstack end
-			-- add in priv check
+		
+		if not check_privilege(placer) then return itemstack end
+		
 		local name = placer:get_player_name()
-		if not minetest.check_player_privs(name, {edit = true}) then
-			minetest.chat_send_player(name, "You can't use an edit block without the edit privilege.")
-			return itemstack
-		end
-		--end priv check
-		if clipboard[placer:get_player_name()].copyBlock1Pos then
-			clipboard[placer:get_player_name()].copyData = {} -- clear out old copy data
-			local copyData = clipboard[placer:get_player_name()].copyData
-			local p1 = clipboard[placer:get_player_name()].copyBlock1Pos
+		if clipboard[name].copy_block1_pos then
+			clipboard[name].copy_data = {} -- clear out old copy data
+			local copy_data = clipboard[name].copy_data
+			local p1 = clipboard[name].copy_block1_pos
 			local p2 = pointed_thing.above
 			
 			minetest.remove_node(p1); -- remove copy block 1.
@@ -114,34 +120,34 @@ minetest.register_node("edit:copy",{
 			
 			for x = p1.x, p2.x, sign(p2.x - p1.x) do
 				local xDif = offsetX + x - p1.x
-				copyData[xDif] = {}
+				copy_data[xDif] = {}
 				for y = p1.y, p2.y, sign(p2.y - p1.y) do
 					local yDif = offsetY + y - p1.y
-					copyData[xDif][yDif] = {}
+					copy_data[xDif][yDif] = {}
 					for z = p1.z, p2.z, sign(p2.z - p1.z) do
 						local zDif = offsetZ + z - p1.z
-						copyData[xDif][yDif][zDif] = minetest.get_node(
-							{x = x, y = y, z = z}
+						copy_data[xDif][yDif][zDif] = minetest.get_node(
+							vector.new(x, y, z)
 						)
 					end
 				end
 			end
-			clipboard[placer:get_player_name()].copyBlock1Pos = nil
+			clipboard[placer:get_player_name()].copy_block1_pos = nil
 		else
 			minetest.set_node(pointed_thing.above, {name = "edit:copy"})
-			clipboard[placer:get_player_name()].copyBlock1Pos = pointed_thing.above
+			clipboard[placer:get_player_name()].copy_block1_pos = pointed_thing.above
 		end
 	end,
 	on_dig = function(pos, node, digger)
 		for name, value in pairs(clipboard) do
 			minetest.remove_node(pos);
 			if
-				clipboard[name].copyBlock1Pos
-				and clipboard[name].copyBlock1Pos.x == pos.x
-				and clipboard[name].copyBlock1Pos.y == pos.y
-				and clipboard[name].copyBlock1Pos.z == pos.z
+				clipboard[name].copy_block1_pos
+				and clipboard[name].copy_block1_pos.x == pos.x
+				and clipboard[name].copy_block1_pos.y == pos.y
+				and clipboard[name].copy_block1_pos.z == pos.z
 			then
-				clipboard[name].copyBlock1Pos = nil
+				clipboard[name].copy_block1_pos = nil
 				break
 			end
 		end
@@ -156,26 +162,19 @@ minetest.register_node("edit:paste", {
 	groups = {snappy = 2, oddly_breakable_by_hand = 3},
 	on_place = function(itemstack, placer, pointed_thing)
 		if not placer then return itemstack end
-			-- add in priv check
-		local name = placer:get_player_name()
-		if not minetest.check_player_privs(name, {edit = true}) then
-			minetest.chat_send_player(name, "You can't use an edit block without the edit privilege.")
-			return itemstack
-		end
-		--end priv check
-		local copyData = clipboard[placer:get_player_name()].copyData
+		
+		if not check_privilege(placer) then return itemstack end
+		
+		local copy_data = clipboard[placer:get_player_name()].copy_data
 		local pos = pointed_thing.above
-		for x, yTable in pairs(copyData) do
+		for x, yTable in pairs(copy_data) do
 			for y, zTable in pairs(yTable) do
 				for z, node in pairs(zTable) do
-					minetest.set_node(
-						{
-							x = pos.x + x,
-							y = pos.y + y,
-							z = pos.z + z
-						},
-						node
-					)
+					minetest.set_node(vector.new(
+						pos.x + x,
+						pos.y + y,
+						pos.z + z
+					), node)
 				end
 			end
 		end
@@ -190,114 +189,123 @@ minetest.register_node("edit:fill",{
 	groups = {snappy = 2, oddly_breakable_by_hand = 3},
 	on_place = function(itemstack, placer, pointed_thing)
 		if not placer then return itemstack end
-			-- add in priv check
-		local name = placer:get_player_name()
-		if not minetest.check_player_privs(name, {edit = true}) then
-			minetest.chat_send_player(name, "You can't use an edit block without the edit privilege.")
-			return itemstack
-		end
-		--end priv check
-		if clipboard[placer:get_player_name()].fillBlock1Pos then
+		
+		if not check_privilege(placer) then return itemstack end
+		
+		if clipboard[placer:get_player_name()].fill_block1 then
 			minetest.set_node(pointed_thing.above, {name = "edit:fill"})
-			clipboard[placer:get_player_name()].fillBlock2Pos = pointed_thing.above
+			clipboard[placer:get_player_name()].fill_block2 = pointed_thing
 				
 			local inv = minetest.get_inventory({type = "player", name = placer:get_player_name()})
 			local formSpec = "size[8,6]label[0.5,0.5;Select the material you would like to use]button_exit[7,0;1,1;quit;X]"
 			for y = 1, 4 do
 				for x = 1, 8 do
 					local name = inv:get_stack("main", ((y - 1) * 8) + x):get_name()
-					formSpec
-					=
-					formSpec
-					.. "item_image_button["
-					.. (x - 1) .. ","
-					.. (y + 1) .. ";1,1;"
-					.. name .. ";"
-					.. name .. ";]"
+					formSpec =
+						formSpec
+						.. "item_image_button["
+						.. (x - 1) .. ","
+						.. (y + 1) .. ";1,1;"
+						.. name .. ";"
+						.. name .. ";]"
 				end
 			end
-			minetest.show_formspec(placer:get_player_name(), "edit:pasteType", formSpec)
+			minetest.show_formspec(placer:get_player_name(), "edit:select_fill_type", formSpec)
 		else
 			minetest.set_node(pointed_thing.above, {name = "edit:fill"})
-			clipboard[placer:get_player_name()].fillBlock1Pos = pointed_thing.above
+			clipboard[placer:get_player_name()].fill_block1 = pointed_thing
 		end
 	end,
 	on_dig = function(pos, node, digger)
 		minetest.remove_node(pos);
-		for name, value in pairs(clipboard) do
-			if
-				clipboard[name].fillBlock1Pos
-				and clipboard[name].fillBlock1Pos.x == pos.x
-				and clipboard[name].fillBlock1Pos.y == pos.y
-				and clipboard[name].fillBlock1Pos.z == pos.z
-			then
-				clipboard[name].fillBlock1Pos = nil
-				break
-			elseif
-				clipboard[name].fillBlock2Pos
-				and clipboard[name].fillBlock2Pos.x == pos.x
-				and clipboard[name].fillBlock2Pos.y == pos.y
-				and clipboard[name].fillBlock2Pos.z == pos.z
-			then
-				clipboard[digger:get_player_name()].fillBlock2Pos = nil
-				break
+		for name, fills in pairs(clipboard) do
+			local block1 = fills.fill_block1
+			local block2 = fills.fill_block2
+			if block1 and vector.equals(block1.above, pos) then
+				fills.fill_block1 = nil
+				fills.fill_block2 = nil
+				minetest.remove_node(block1.above)
+				return
+			end
+			if block2 and vector.equals(block2.above, pos) then
+				fills.fill_block1 = nil
+				fills.fill_block2 = nil
+				minetest.remove_node(block2.above)
+				return
 			end
 		end
 	end
 })
+
 minetest.register_on_player_receive_fields(function(player, formname, fields)
 	if not player then return false end
-	if formname == "edit:pasteType" then
-		for key, value in pairs(fields) do
-			if
-				clipboard[player:get_player_name()].fillBlock1Pos
-				and clipboard[player:get_player_name()].fillBlock2Pos
-			then
-				local p1 = clipboard[player:get_player_name()].fillBlock1Pos
-				local p2 = clipboard[player:get_player_name()].fillBlock2Pos
-				if key == "quit" then
-					minetest.remove_node(p1)
-					minetest.remove_node(p2)
-					clipboard[player:get_player_name()].fillBlock1Pos = nil
-					clipboard[player:get_player_name()].fillBlock2Pos = nil
+	if formname ~= "edit:select_fill_type" then return false end
+	
+	minetest.close_formspec(player:get_player_name(), "edit:select_fill_type")
+	
+	if
+		not clipboard[player:get_player_name()].fill_block1
+		or not clipboard[player:get_player_name()].fill_block2
+	then return true end
+	
+	local p1 = clipboard[player:get_player_name()].fill_block1.above
+	local p2 = clipboard[player:get_player_name()].fill_block2.above
+	local pointed_thing = clipboard[player:get_player_name()].fill_block1
+	clipboard[player:get_player_name()].fill_block1 = nil
+	clipboard[player:get_player_name()].fill_block2 = nil
+	minetest.remove_node(p1)
+	minetest.remove_node(p2)
+	
+	local item = next(fields)
+	if item == "quit" then return true end
+	if item == "" then item = "air" end
+
+	local def = minetest.registered_nodes[item]
+		or minetest.registered_craftitems[item]
+		or minetest.registered_tools[item]
+		or minetest.registered_items[item]
+				
+	if not def then return true end
+		
+	local is_node = minetest.registered_nodes[item]
+		
+	local param2
+	if def.paramtype2 == "facedir" then
+		param2 = minetest.dir_to_facedir(player:get_look_dir())
+	elseif def.paramtype2 == "wallmounted" then
+		param2 = minetest.dir_to_wallmounted(player:get_look_dir(), true)
+	end
+	
+	for x = p1.x, p2.x, sign(p2.x - p1.x) do
+		for y = p1.y, p2.y, sign(p2.y - p1.y) do
+			for z = p1.z, p2.z, sign(p2.z - p1.z) do
+				if is_node then
+					minetest.set_node(vector.new(x, y, z), {name = item, param2 = param2})
 				else
-					if key == "" then key = "air" end
-					local def = minetest.registered_nodes[key]
-					if not def then return end
-					local param2
-					if def.paramtype2 == "facedir" then
-						param2 = minetest.dir_to_facedir(player:get_look_dir())
-					elseif def.paramtype2 == "wallmounted" then
-						param2 = minetest.dir_to_wallmounted(player:get_look_dir(), true)
-					end
-					--minetest.chat_send_all("" .. param2)
-					for x = p1.x, p2.x, sign(p2.x - p1.x) do
-						for y = p1.y, p2.y, sign(p2.y - p1.y) do
-							for z = p1.z, p2.z, sign(p2.z - p1.z) do
-								minetest.set_node({x = x, y = y, z = z}, {name = key, param2 = param2})
-							end
-						end
-					end
-					minetest.close_formspec(player:get_player_name(), "edit:pasteType")
-					clipboard[player:get_player_name()].fillBlock1Pos = nil
-					clipboard[player:get_player_name()].fillBlock2Pos = nil
+					minetest.remove_node(vector.new(x, y, z))
+				end
+				if def.on_place then
+					local itemstack = ItemStack(item)
+					pointed_thing.intersection_point = vector.new(x + 0.5, y, z + 0.5)
+					pointed_thing.above = vector.new(x, y, z)
+					pointed_thing.below = vector.new(x, y - 1, z)
+					def.on_place(itemstack, player, pointed_thing)
 				end
 			end
 		end
-		return true
 	end
-	return false
+	return true
 end)
 
 clipboard = {};
 minetest.register_on_joinplayer(function(player)
 	if player then
 		clipboard[player:get_player_name()] = {
-			["fillBlock1Pos"] = nil,
-			["fillBlock2Pos"] = nil,
-			["copyBlock1Pos"] = nil,
-			["deleteBlock1Pos"] = nil,
-			["copyData"] = {},
+			fill_block1 = nil,
+			fill_block2 = nil,
+			copy_block1_pos = nil,
+			delete_block1_pos = nil,
+			copy_data = {},
 		};
 	end
 end);

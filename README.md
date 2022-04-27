@@ -10,6 +10,8 @@ This mod is named `edit`, permits to a player, manage regions by the usage
 of blocks to mark ones. It provides functionalities of `cut`, `copy`, `paste` and `delete`, 
 but using always special blocks to mark the dessired area.
 
+This mod was inspired by the Fill Start and Fill End blocks in Manic Digger.
+
 ![screenshot](screenshot.png)
 
 Technical information
@@ -73,5 +75,5 @@ LICENCE
 -------
 
 CC0 by MrRar check [LICENSE](LICENSE) file, this mod was started by MrRar, 
-minetest-mods community later absorved but abandoned.
+minetest-mods community later absorved.
 
