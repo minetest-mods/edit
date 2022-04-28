@@ -1,7 +1,10 @@
-minetest mod Edit
+Minetest Mod Edit
 ==================
 
 This mod provides a block way to cut, paste, fill or delete regions
+
+[![ContentDB](https://content.minetest.net/packages/Mr.%20Rar/edit/shields/downloads/)](https://content.minetest.net/packages/Mr.%20Rar/edit/)
+
 
 Information
 -----------
