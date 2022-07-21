@@ -1,0 +1,4 @@
+
+paste_preview_max_entities	(Paste preview max entities)	int 2000
+
+max_operation_volume		(Max edit operation volume)		int 20000
