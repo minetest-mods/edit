@@ -4,8 +4,9 @@
 
 local player_data = {}
 
-local paste_preview_max_entities = tonumber(minetest.settings:get("paste_preview_max_entities") or 2000)
-local max_operation_volume = tonumber(minetest.settings:get("max_operation_volume") or 20000)
+local paste_preview_max_entities = tonumber(minetest.settings:get("edit_paste_preview_max_entities") or 2000)
+local max_operation_volume = tonumber(minetest.settings:get("edit_max_operation_volume") or 20000)
+local use_fast_node_fill = minetest.settings:get_bool("edit_use_fast_node_fill", false)
 
 local function create_paste_preview(player)
 	local player_pos = player:get_pos()
@@ -135,10 +136,15 @@ local function has_privilege(player)
 	end
 end
 
+local function display_size_error(player)
+	local msg = "Operation too large. The maximum operation volume can be changed in Minetest settings."
+	minetest.chat_send_player(player:get_player_name(), msg)
+end
+
 local function on_place_checks(player)
 	return player and
-	player:is_player() and
-	has_privilege(player)
+		player:is_player() and
+		has_privilege(player)
 end
 
 
@@ -200,7 +206,7 @@ minetest.register_node("edit:delete", {
 			)
 			local size = vector.add(vector.subtract(_end, start), 1)
 			if size.x * size.y * size.z > max_operation_volume then
-				minetest.chat_send_player(player:get_player_name(), "Delete operation too big.")
+				display_size_error(player)
 				return
 			end
 			player_data[player].undo_schematic = schematic_from_map(start, size)
@@ -272,7 +278,7 @@ minetest.register_node("edit:copy",{
 			
 			local size = vector.add(vector.subtract(_end, start), vector.new(1, 1, 1))
 			if size.x * size.y * size.z > max_operation_volume then
-				minetest.chat_send_player(player:get_player_name(), "Copy operation too big.")
+				display_size_error(player)
 				return
 			end
 			
@@ -444,6 +450,16 @@ minetest.register_node("edit:fill",{
 		local itemstack, pos = minetest.item_place_node(itemstack, player, pointed_thing)
 		
 		if player_data[player].fill1_pos and pos then
+			local diff = vector.subtract(player_data[player].fill1_pos, pos)
+			local size = vector.add(vector.apply(diff, math.abs), 1)
+			if size.x * size.y * size.z > max_operation_volume then
+				display_size_error(player)
+				minetest.remove_node(player_data[player].fill1_pos)
+				player_data[player].fill1_pos = nil
+				minetest.remove_node(pos)
+				return
+			end
+		
 			player_data[player].fill2_pos = pos
 			player_data[player].fill_pointed_thing = pointed_thing
 				
@@ -529,9 +545,9 @@ minetest.register_on_player_receive_fields(function(player, formname, fields)
 		local is_node = minetest.registered_nodes[name]
 			
 		local param2
-		if def.paramtype2 == "facedir" then
+		if def.paramtype2 == "facedir" or def.paramtype2 == "colorfacedir" then
 			param2 = minetest.dir_to_facedir(player:get_look_dir())
-		elseif def.paramtype2 == "wallmounted" then
+		elseif def.paramtype2 == "wallmounted" or def.paramtype2 == "colorwallmounted" then
 			param2 = minetest.dir_to_wallmounted(player:get_look_dir(), true)
 		end
 		
@@ -549,27 +565,46 @@ minetest.register_on_player_receive_fields(function(player, formname, fields)
 		)
 		
 		local size = vector.add(vector.subtract(_end, start), 1)
-		if size.x * size.y * size.z > max_operation_volume then
-			minetest.chat_send_player(player:get_player_name(), "Fill operation too large.")
-			return true
-		end
+		
 		player_data[player].undo_schematic = schematic_from_map(start, size)
 		
-		for x = start.x, _end.x, 1 do
-			for y = start.y, _end.y, 1 do
-				for z = start.z, _end.z, 1 do
-					local pos = vector.new(x, y, z)
-					if is_node then
-						minetest.set_node(pos, {name = name, param2 = param2})
-					else
-						minetest.remove_node(pos)
-					end
-					if on_place then
-						local itemstack = ItemStack(name)
-						pointed_thing.intersection_point = vector.new(x + 0.5, y, z + 0.5)
-						pointed_thing.above = pos
-						pointed_thing.below = vector.new(x, y - 1, z)
-						on_place(itemstack, player, pointed_thing)
+		if is_node and use_fast_node_fill then
+			local voxel_manip = VoxelManip()
+			local vm_start, vm_end = voxel_manip:read_from_map(start, _end)
+			local param2s = voxel_manip:get_param2_data()
+			local content_ids = voxel_manip:get_data()
+			local content_id = minetest.get_content_id(name)
+
+			local ones = vector.new(1, 1, 1)
+			local vm_size = vector.add(vector.subtract(vm_end, vm_start), ones)
+			local voxel_area = VoxelArea:new({MinEdge = ones, MaxEdge = vm_size})
+			local va_start = vector.add(vector.subtract(start, vm_start), ones)
+			local va_end = vector.subtract(vector.add(va_start, size), ones)
+			for i in voxel_area:iterp(va_start, va_end) do
+				content_ids[i] = content_id
+				param2s[i] = param2
+			end
+			voxel_manip:set_data(content_ids)
+			voxel_manip:set_param2_data(param2s)
+			voxel_manip:write_to_map(true)
+			voxel_manip:update_liquids()
+		else
+			for x = start.x, _end.x, 1 do
+				for y = start.y, _end.y, 1 do
+					for z = start.z, _end.z, 1 do
+						local pos = vector.new(x, y, z)
+						if is_node then
+							minetest.set_node(pos, {name = name, param2 = param2})
+						else
+							minetest.remove_node(pos)
+						end
+						if on_place then
+							local itemstack = ItemStack(name)
+							pointed_thing.intersection_point = vector.new(x + 0.5, y, z + 0.5)
+							pointed_thing.above = pos
+							pointed_thing.below = vector.new(x, y - 1, z)
+							on_place(itemstack, player, pointed_thing)
+						end
 					end
 				end
 			end
@@ -804,13 +839,13 @@ minetest.register_globalstep(function(dtime)
 				local control = player:get_player_control()
 				if control.sneak and control.left then
 					if d.paste_preview_can_rotate then
-						set_schematic_rotation(d.schematic, -90)
+						set_schematic_rotation(d.schematic, 90)
 						delete_paste_preview(player)
 						d.paste_preview_can_rotate = false
 					end
 				elseif control.sneak and control.right then
 					if d.paste_preview_can_rotate then
-						set_schematic_rotation(d.schematic, 90)
+						set_schematic_rotation(d.schematic, -90)
 						delete_paste_preview(player)
 						d.paste_preview_can_rotate = false
 					end

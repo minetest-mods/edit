@@ -27,7 +27,7 @@ This mod was inspired by the Fill Start and Fill End blocks in Manic Digger.
 | Undo   | edit:undo   | ![](textures/edit_undo.png)   |
 
 
-## Dependences
+## Dependencies
 
 None
 
@@ -43,17 +43,17 @@ When two copy nodes are placed at opposite corners of an area, they select the a
 
 ### Paste Node
 
-The paste node is used for pasting the area copied by the copy node or a schematic loaded with the open node. When a paste node is placed, the copied area or schematic is placed at the corner of the paste node. In the case of a copied area, area is pasted relative to the position of the first placed copy node when it was copied. The copied area can be rotated when the paste preview is visable by pressing the sneak key and an arrow key.
+The paste node is used for pasting the area copied by the copy node or a schematic loaded with the open node. When a paste node is placed, the copied area or schematic is placed at the corner of the paste node. In the case of a copied area, area is pasted relative to the position of the first placed copy node when it was copied. The copied area can be rotated when the paste preview is visible by pressing the sneak key and an arrow key.
 
 
 ### Delete Node
 
-Delete nodes are used to delete an area. When two delete nodes are placed at opposite corners of an area, they select the area as show in figure 1. When an area is selected, it is deleted and the two delete nodes are removed as well.
+Delete nodes are used to delete a 3D area. When two delete nodes are placed at opposite corners of an area, they select the area as show in figure 1. When an area is selected, it is deleted and the two delete nodes are removed as well.
 
 
 ### Fill Node
 
-![figure1.png](figure2.png)
+![figure2.png](figure2.png)
 
 Fill nodes are used to fill a 3D area with a certain item. Start by placing two fill nodes at opposite corners of the desired area. The selected area includes the positions of the fill nodes themselves as shown in figure 2.
 
@@ -77,7 +77,30 @@ Use a second time to redo the undo.
 Only the most resent world modification can be undone.
 
 
-### License
+## Settings
+
+### edit_paste_preview_max_entities
+
+If the copied area has a larger number of nodes, some nodes will be randomly excluded from the preview.
+
+
+### edit_max_operation_volume
+
+The maximum volume of any edit operation. Increase to allow larger operations.
+
+
+### edit_use_fast_node_fill
+
+Fast filling of nodes. This uses VoxelManip for fast node placement.
+No node placement callbacks are called so some nodes might be broken.
+
+
+## Privileges
+
+Edit tools and nodes can only be used by players with `edit` privilege.
+
+
+## License
 
 CC0 by MrRar check [License](LICENSE) file, this mod was started by MrRar, 
 minetest-mods community.

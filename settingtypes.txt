@@ -1,4 +1,10 @@
+# The maximum number of entities used to construct the paste preview.
+# If the copied area has a larger number of nodes, some nodes will be randomly excluded from the preview.
+edit_paste_preview_max_entities (Paste preview max entities) int 2000
 
-paste_preview_max_entities	(Paste preview max entities)	int 2000
+# The maximum volume of any edit operation. Increase to allow larger operations.
+edit_max_operation_volume (Max edit operation volume) int 20000
 
-max_operation_volume		(Max edit operation volume)		int 20000
+# Fast filling of nodes. This uses VoxelManip for fast node placement.
+# No node placement callbacks are called so some nodes might be broken.
+edit_use_fast_node_fill (Use fast node fill) bool false
