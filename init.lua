@@ -222,8 +222,7 @@ minetest.register_node("edit:delete", {
 			player_data[player].delete_node1_pos = pos
 		end
 	end,
-	on_dig = function(pos, node, digger)
-		minetest.remove_node(pos)
+	on_destruct = function(pos)
 		for player, data in pairs(player_data) do
 			if
 				data.delete_node1_pos and
@@ -292,8 +291,7 @@ minetest.register_node("edit:copy",{
 			player_data[player].copy_node1_pos = pos
 		end
 	end,
-	on_dig = function(pos, node, digger)
-		minetest.remove_node(pos)
+	on_destruct = function(pos)
 		for player, data in pairs(player_data) do
 			if
 				data.copy_node1_pos and
@@ -482,8 +480,7 @@ minetest.register_node("edit:fill",{
 			player_data[player].fill1_pos = pos
 		end
 	end,
-	on_dig = function(pos, node, digger)
-		minetest.remove_node(pos)
+	on_destruct = function(pos)
 		for player, data in pairs(player_data) do
 			local p1 = data.fill1_pos
 			local p2 = data.fill2_pos
@@ -532,10 +529,7 @@ minetest.register_on_player_receive_fields(function(player, formname, fields)
 			if key == "" then item = "air" end
 
 			name = key
-			def = minetest.registered_nodes[name] or
-				minetest.registered_craftitems[name] or
-				minetest.registered_tools[name] or
-				minetest.registered_items[name]
+			def = minetest.registered_items[name]
 			
 			if def then break end
 		end
@@ -550,7 +544,7 @@ minetest.register_on_player_receive_fields(function(player, formname, fields)
 		elseif def.paramtype2 == "wallmounted" or def.paramtype2 == "colorwallmounted" then
 			param2 = minetest.dir_to_wallmounted(player:get_look_dir(), true)
 		end
-		
+
 		local on_place = def.on_place
 		
 		local start = vector.new(
@@ -593,16 +587,18 @@ minetest.register_on_player_receive_fields(function(player, formname, fields)
 				for y = start.y, _end.y, 1 do
 					for z = start.z, _end.z, 1 do
 						local pos = vector.new(x, y, z)
+
 						if is_node then
 							minetest.set_node(pos, {name = name, param2 = param2})
 						else
 							minetest.remove_node(pos)
 						end
+
 						if on_place then
 							local itemstack = ItemStack(name)
 							pointed_thing.intersection_point = vector.new(x + 0.5, y, z + 0.5)
 							pointed_thing.above = pos
-							pointed_thing.below = vector.new(x, y - 1, z)
+							pointed_thing.under = vector.new(x, y - 1, z)
 							on_place(itemstack, player, pointed_thing)
 						end
 					end
