@@ -598,7 +598,7 @@ minetest.register_on_player_receive_fields(function(player, formname, fields)
 							local itemstack = ItemStack(name)
 							pointed_thing.intersection_point = vector.new(x + 0.5, y, z + 0.5)
 							pointed_thing.above = pos
-							pointed_thing.under = vector.new(x, y - 1, z)
+							pointed_thing.under = pos
 							on_place(itemstack, player, pointed_thing)
 						end
 					end
