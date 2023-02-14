@@ -8,7 +8,7 @@
 
 
 This mod named `edit` allows copying, pasting, filling, deleting, opening and saving 3D areas.
-Schematics are loaded and saved from .mts files located in the world subfolder `schems`.
+Schematics are loaded and saved from .mts files located in the world sub folder `schems`.
 
 This mod was inspired by the Fill Start and Fill End blocks in Manic Digger.
 
@@ -16,12 +16,11 @@ This mod was inspired by the Fill Start and Fill End blocks in Manic Digger.
 
 ## Items
 
-| Name   | Node ID     | Image                         |
+| Name   | Item ID     | Image                         |
 | ------ | ----------- | ----------------------------- |
 | Copy   | edit:copy   | ![](textures/edit_copy.png)   |
 | Paste  | edit:paste  | ![](textures/edit_paste.png)  |
 | Fill   | edit:fill   | ![](textures/edit_fill.png)   |
-| Delete | edit:delete | ![](textures/edit_delete.png) |
 | Open   | edit:open   | ![](textures/edit_open.png)   |
 | Save   | edit:save   | ![](textures/edit_save.png)   |
 | Undo   | edit:undo   | ![](textures/edit_undo.png)   |
@@ -34,28 +33,21 @@ None
 
 ## Usage
 
-### Copy Node
+### Copy Tool
 
-![figure1.png](figure1.png)
+![figure.png](figure.png)
 
-When two copy nodes are placed at opposite corners of an area, they select the area as show in figure 1. When an area is selected, it is copied and the two copy nodes are deleted.
-
-
-### Paste Node
-
-The paste node is used for pasting the area copied by the copy node or a schematic loaded with the open node. When a paste node is placed, the copied area or schematic is placed at the corner of the paste node. In the case of a copied area, area is pasted relative to the position of the first placed copy node when it was copied. The copied area can be rotated when the paste preview is visible by pressing the sneak key and an arrow key.
+When the copy tool is placed at opposite corners of an area, they select the area as show in the figure. The copy tool uses the location under the placed position. When the copy tool is placed for the first time, a marker entity is placed. To cancel the copy operation, punch the entity marker. When a copy tool is placed a second time, the selected area is copied and the entity marker is removed.
 
 
-### Delete Node
+### Paste Tool
 
-Delete nodes are used to delete a 3D area. When two delete nodes are placed at opposite corners of an area, they select the area as show in figure 1. When an area is selected, it is deleted and the two delete nodes are removed as well.
+The paste tool is used for pasting the area copied by the copy tool or a schematic loaded with the open tool. When a paste tool is placed, the copied area or schematic is placed at the corner of the paste tool. The copied area can be rotated by punching while holding the paste tool.
 
 
 ### Fill Node
 
-![figure2.png](figure2.png)
-
-Fill nodes are used to fill a 3D area with a certain item. Start by placing two fill nodes at opposite corners of the desired area. The selected area includes the positions of the fill nodes themselves as shown in figure 2.
+Fill nodes are used to fill a 3D area with a certain item. Start by placing two fill nodes at opposite corners of the desired area. The selected area includes the positions of the fill nodes themselves as shown in the figure.
 
 Once a second fill node is placed, a dialog appears listing all items in the players inventory. Clicking an item will cause it to be used used for filling the selected area. Clicking on a blank slot will cause the selected area to be filled with air. To cancel the fill, press the "X".
 

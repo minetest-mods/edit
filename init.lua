@@ -1,5 +1,5 @@
 -------------------
--- Edit Mod v1.0 --
+-- Edit Mod v1.1 --
 -------------------
 
 local player_data = {}
@@ -71,12 +71,6 @@ local function set_schematic_rotation(schematic, angle)
 	if schematic._rotation == 90 or schematic._rotation == 270 then
 		size = vector.new(size.z, size.y, size.x)
 	end
-	
-	local sign = vector.apply(schematic._offset, math.sign)
-	schematic._offset = vector.apply(
-		vector.multiply(size, sign),
-		function(n) return n < 0 and n or 1 end
-	)
 	--[[local old_schematic = player_data[player].schematic
 	local new_schematic = {data = {}}
 	player_data[player].schematic = new_schematic
@@ -147,7 +141,6 @@ local function on_place_checks(player)
 		has_privilege(player)
 end
 
-
 local function schematic_from_map(pos, size)
 	local schematic = {data = {}}
 	schematic.size = size
@@ -167,141 +160,103 @@ local function schematic_from_map(pos, size)
 	return schematic
 end
 
-minetest.register_node("edit:delete", {
-	description = "Edit Delete",
-	inventory_image = "edit_delete.png",
-	groups = {snappy = 2, oddly_breakable_by_hand = 3},
-	tiles = {"edit_delete.png"},
-	range = 10,
-	on_place = function(itemstack, player, pointed_thing)
-		if not on_place_checks(player) then return end
-		
-		local itemstack, pos = minetest.item_place_node(itemstack, player, pointed_thing)
-		
-		if player_data[player].delete_node1_pos and pos then
-			local p1 = player_data[player].delete_node1_pos
-			player_data[player].delete_node1_pos = nil
-			local p2 = pos
-			
-			minetest.remove_node(p1)
-			minetest.remove_node(p2)
-			
-			-- Is the volume of the selected area 0?
-			local test = vector.apply(vector.subtract(p2, p1), math.abs)
-			if test.x <= 1 or test.y <= 1 or test.z <= 1 then return end
-			
-			local sign = vector.new(vector.apply(vector.subtract(p2, p1), math.sign))
-			p1 = vector.add(p1, sign)
-			p2 = vector.add(p2, vector.multiply(sign, -1))
-			
-			local start = vector.new(
-				math.min(p1.x, p2.x),
-				math.min(p1.y, p2.y),
-				math.min(p1.z, p2.z)
-			)
-			local _end = vector.new(
-				math.max(p1.x, p2.x),
-				math.max(p1.y, p2.y),
-				math.max(p1.z, p2.z)
-			)
-			local size = vector.add(vector.subtract(_end, start), 1)
-			if size.x * size.y * size.z > max_operation_volume then
-				display_size_error(player)
-				return
-			end
-			player_data[player].undo_schematic = schematic_from_map(start, size)
-			
-			for x = start.x, _end.x, 1 do
-				for y = start.y, _end.y, 1 do
-					for z = start.z, _end.z, 1 do
-						minetest.remove_node(vector.new(x, y, z))
-					end
-				end
-			end
-		elseif pos then
-			player_data[player].delete_node1_pos = pos
-		end
-	end,
-	on_destruct = function(pos)
-		for player, data in pairs(player_data) do
-			if
-				data.delete_node1_pos and
-				vector.equals(data.delete_node1_pos, pos)
-			then
-				data.delete_node1_pos = nil
-				break
-			end
+local function get_pointed_thing_node(player)
+	local look_dir = player:get_look_dir()
+	local pos1 = player:get_pos()
+	local eye_height = player:get_properties().eye_height
+	pos1.y = pos1.y + eye_height
+	local pos2 = vector.add(pos1, vector.multiply(look_dir, 10))
+	local ray = minetest.raycast(pos1, pos2, false, false)
+	for pointed_thing in ray do
+		if pointed_thing.under then
+			return pointed_thing
 		end
 	end
-})
+	local pos = vector.round(pos2)
+	return { type = "node", under = pos, above = pos }
+end
 
-minetest.register_node("edit:copy",{
+local function copy_on_place(itemstack, player, pointed_thing)
+	if not on_place_checks(player) then return end
+	if not pointed_thing.under then
+		pointed_thing = get_pointed_thing_node(player)
+	end
+	local pos = pointed_thing.under
+
+	if player_data[player].copy_luaentity1 and pos then
+		local p1 = player_data[player].copy_luaentity1._pos
+		local p2 = pos
+
+		player_data[player].copy_luaentity1.object:remove()
+		player_data[player].copy_luaentity1 = nil
+
+		local start = vector.new(
+			math.min(p1.x, p2.x),
+			math.min(p1.y, p2.y),
+			math.min(p1.z, p2.z)
+		)
+		local _end = vector.new(
+			math.max(p1.x, p2.x),
+			math.max(p1.y, p2.y),
+			math.max(p1.z, p2.z)
+		)
+		
+		local size = vector.add(vector.subtract(_end, start), vector.new(1, 1, 1))
+		if size.x * size.y * size.z > max_operation_volume then
+			display_size_error(player)
+			return
+		end
+		
+		player_data[player].schematic = schematic_from_map(start, size)
+		player_data[player].schematic._offset = vector.new(0, 0, 0)
+		delete_paste_preview(player)
+		local function vector_to_string(v) return "(" .. v.x .. ", " .. v.y .. ", " .. v.z .. ")" end
+		minetest.chat_send_player(
+			player:get_player_name(),
+			vector_to_string(start) .. " to " .. vector_to_string(_end) .. " copied." )
+	else
+		local obj_ref = minetest.add_entity(pos, "edit:copy")
+		if not obj_ref then return end
+		local luaentity = obj_ref:get_luaentity()
+		luaentity._pos = pos
+		luaentity._placer = player
+		player_data[player].copy_luaentity1 = luaentity
+	end
+end
+
+minetest.register_tool("edit:copy",{
 	description = "Edit Copy",
 	tiles = {"edit_copy.png"},
 	inventory_image = "edit_copy.png",
 	groups = {snappy = 2, oddly_breakable_by_hand = 3},
 	range = 10,
-	on_place = function(itemstack, player, pointed_thing)
-		if not on_place_checks(player) then return end
-		
-		local itemstack, pos = minetest.item_place_node(itemstack, player, pointed_thing)
-		
-		if player_data[player].copy_node1_pos and pos then
-			local p1 = player_data[player].copy_node1_pos
-			local p2 = pos
-			
-			player_data[player].copy_node1_pos = nil
-			minetest.remove_node(p1)
-			minetest.remove_node(p2)
-			
-			local diff = vector.subtract(p2, p1)
-			
-			-- Is the volume of the selected area 0?
-			local test = vector.apply(diff, math.abs)
-			if test.x <= 1 or test.y <= 1 or test.z <= 1 then return itemstack end
-			
-			local sign = vector.apply(vector.subtract(p2, p1), math.sign)
-			p1 = vector.add(p1, sign)
-			p2 = vector.add(p2, vector.multiply(sign, -1))
-			
-			local start = vector.new(
-				math.min(p1.x, p2.x),
-				math.min(p1.y, p2.y),
-				math.min(p1.z, p2.z)
-			)
-			local _end = vector.new(
-				math.max(p1.x, p2.x),
-				math.max(p1.y, p2.y),
-				math.max(p1.z, p2.z)
-			)
-			
-			local size = vector.add(vector.subtract(_end, start), vector.new(1, 1, 1))
-			if size.x * size.y * size.z > max_operation_volume then
-				display_size_error(player)
-				return
-			end
-			
-			player_data[player].schematic = schematic_from_map(start, size)
-			player_data[player].schematic._offset = vector.apply(
-				diff,
-				function(n) return n < 0 and n + 1 or 1 end
-			)
-			delete_paste_preview(player)
-		elseif pos then
-			player_data[player].copy_node1_pos = pos
-		end
+	on_place = copy_on_place,
+	on_secondary_use = copy_on_place,
+})
+
+minetest.register_entity("edit:copy", {
+	initial_properties = {
+		visual = "cube",
+		visual_size = { x = 1.1, y = 1.1},
+		physical = false,
+		collide_with_objects = false,
+		static_save = false,
+		use_texture_alpha = true,
+		glow = -1,
+		backface_culling = false,
+		hp_max = 1,
+		textures = {
+			"edit_copy.png",
+			"edit_copy.png",
+			"edit_copy.png",
+			"edit_copy.png",
+			"edit_copy.png",
+			"edit_copy.png",
+		},
+	},
+	on_death = function(self, killer)
+		player_data[self._placer].copy_luaentity1 = nil
 	end,
-	on_destruct = function(pos)
-		for player, data in pairs(player_data) do
-			if
-				data.copy_node1_pos and
-				vector.equals(data.copy_node1_pos, pos)
-			then
-				data.copy_node1_pos = nil
-				break
-			end
-		end
-	end
 })
 
 local function pointed_thing_to_pos(pointed_thing)
@@ -320,32 +275,55 @@ local function pointed_thing_to_pos(pointed_thing)
 	end
 end
 
+local function paste_on_place(itemstack, player, pointed_thing)
+	if not on_place_checks(player) then return end
+
+	if not pointed_thing.above then
+		pointed_thing = get_pointed_thing_node(player)
+	end
+	
+	if not player_data[player].schematic then
+		minetest.chat_send_player(player:get_player_name(), "Nothing to paste.")
+		return
+	end
+	
+	local schematic = player_data[player].schematic
+	local pos = pointed_thing_to_pos(pointed_thing)
+	if not pos then return end
+	local pos = vector.add(pos, schematic._offset)
+	local size = schematic.size
+	if schematic._rotation == 90 or schematic._rotation == 270 then
+		size = vector.new(size.z, size.y, size.x)
+	end
+	player_data[player].undo_schematic = schematic_from_map(pos, size)
+	minetest.place_schematic(pos, schematic, tostring(schematic._rotation or 0), nil, true)
+end
+
 minetest.register_tool("edit:paste", {
 	description = "Edit Paste",
 	tiles = {"edit_paste.png"},
 	inventory_image = "edit_paste.png",
 	groups = {snappy = 2, oddly_breakable_by_hand = 3},
 	range = 10,
-	on_place = function(itemstack, player, pointed_thing)
-		if not on_place_checks(player) then return end
-		
-		if not player_data[player].schematic then
-			minetest.chat_send_player(player:get_player_name(), "Nothing to paste.")
-			return
-		end
-		
-		local schematic = player_data[player].schematic
-		local pos = pointed_thing_to_pos(pointed_thing)
-		if not pos then return end
-		local pos = vector.add(pos, schematic._offset)
-		local size = schematic.size
-		if schematic._rotation == 90 or schematic._rotation == 270 then
-			size = vector.new(size.z, size.y, size.x)
-		end
-		player_data[player].undo_schematic = schematic_from_map(pos, size)
-		minetest.place_schematic(pos, schematic, tostring(schematic._rotation or 0), nil, true)
+	on_place = paste_on_place,
+	on_secondary_use = paste_on_place,
+	on_use = function(itemstack, player, pointed_thing)
+		local d = player_data[player]
+		if not d.schematic then return end
+		set_schematic_rotation(d.schematic, 90)
+		delete_paste_preview(player)
 	end
 })
+
+local function reliable_show_formspec(player, name, formspec)
+	-- We need to do this nonsense because there is bug in Minetest
+	-- Sometimes no formspec is shown if you call minetest.show_formspec
+	-- from minetest.register_on_player_receive_fields
+	minetest.after(0.1, function()
+		if not player or not player:is_player() then return end
+		minetest.show_formspec(player:get_player_name(), name, formspec)
+	end)
+end
 
 local function delete_schematics_dialog(player)
 	local path = minetest.get_worldpath() .. "/schems"
@@ -358,51 +336,47 @@ local function delete_schematics_dialog(player)
 	reliable_show_formspec(player, "edit:delete_schem", formspec)
 end
 
+local function open_on_place(itemstack, player, pointed_thing)
+	if not on_place_checks(player) then return end
+	
+	local path = minetest.get_worldpath() .. "/schems"
+	local dir_list = minetest.get_dir_list(path)
+	if #path > 40 then path = "..." .. path:sub(#path - 40, #path) end
+	local formspec = "size[10,10]label[0.5,0.5;Load a schematic into copy buffer from:\n" ..
+		minetest.formspec_escape(path) .. "]button_exit[9,0;1,1;quit;X]" ..
+		"textlist[0.5,2;9,7;schems;" .. table.concat(dir_list, ",") .. "]" ..
+		"button_exit[3,9.25;4,1;delete;Delete schematics...]"
+	
+	minetest.show_formspec(player:get_player_name(), "edit:open", formspec)
+end
+
 minetest.register_tool("edit:open",{
 	description = "Edit Open",
 	inventory_image = "edit_open.png",
 	range = 10,
-	on_place = function(itemstack, player, pointed_thing)
-		if not on_place_checks(player) then return end
-		
-		local path = minetest.get_worldpath() .. "/schems"
-		local dir_list = minetest.get_dir_list(path)
-		if #path > 40 then path = "..." .. path:sub(#path - 40, #path) end
-		local formspec = "size[10,10]label[0.5,0.5;Load a schematic into copy buffer from:\n" ..
-			minetest.formspec_escape(path) .. "]button_exit[9,0;1,1;quit;X]" ..
-			"textlist[0.5,2;9,7;schems;" .. table.concat(dir_list, ",") .. "]" ..
-			"button_exit[3,9.25;4,1;delete;Delete schematics...]"
-		
-		minetest.show_formspec(player:get_player_name(), "edit:open", formspec)
-	end
+	on_place = open_on_place,
+	on_secondary_use = open_on_place
 })
+
+local function undo_on_place(itemstack, player, pointed_thing)
+	if not on_place_checks(player) then return end
+
+	local schem = player_data[player].undo_schematic
+	if schem then
+		player_data[player].undo_schematic = schematic_from_map(schem._pos, schem.size)
+		minetest.place_schematic(schem._pos, schem, nil, nil, true)
+	else
+		minetest.chat_send_player(player:get_player_name(), "Nothing to undo.")
+	end
+end
 
 minetest.register_tool("edit:undo",{
 	description = "Edit Undo",
 	inventory_image = "edit_undo.png",
 	range = 10,
-	on_place = function(itemstack, player, pointed_thing)
-		if not on_place_checks(player) then return end
-	
-		local schem = player_data[player].undo_schematic
-		if schem then
-			player_data[player].undo_schematic = schematic_from_map(schem._pos, schem.size)
-			minetest.place_schematic(schem._pos, schem, nil, nil, true)
-		else
-			minetest.chat_send_player(player:get_player_name(), "Nothing to undo.")
-		end
-	end
+	on_place = undo_on_place,
+	on_secondary_use = undo_on_place
 })
-
-function reliable_show_formspec(player, name, formspec)
-	-- We need to do this nonsense because there is bug in Minetest
-	-- Sometimes no formspec is shown if you call minetest.show_formspec
-	-- from minetest.register_on_player_receive_fields
-	minetest.after(0.1, function()
-		if not player or not player:is_player() then return end
-		minetest.show_formspec(player:get_player_name(), name, formspec)
-	end)
-end
 
 local function show_save_dialog(player, filename, save_error)
 	if not player_data[player].schematic then
@@ -433,53 +407,63 @@ minetest.register_tool("edit:save",{
 	range = 10,
 	on_place = function(itemstack, player, pointed_thing)
 		if on_place_checks(player) then show_save_dialog(player) end
+	end,
+	on_secondary_use = function(itemstack, player, pointed_thing)
+		if on_place_checks(player) then show_save_dialog(player) end
 	end
 })
+
+local function fill_on_place(itemstack, player, pointed_thing)
+	if not on_place_checks(player) then return end
+
+	if not pointed_thing.above then
+		pointed_thing = get_pointed_thing_node(player)
+	end
+	
+	local itemstack, pos = minetest.item_place_node(itemstack, player, pointed_thing)
+	
+	if player_data[player].fill1_pos and pos then
+		local diff = vector.subtract(player_data[player].fill1_pos, pos)
+		local size = vector.add(vector.apply(diff, math.abs), 1)
+		if size.x * size.y * size.z > max_operation_volume then
+			display_size_error(player)
+			minetest.remove_node(player_data[player].fill1_pos)
+			player_data[player].fill1_pos = nil
+			minetest.remove_node(pos)
+			return
+		end
+	
+		player_data[player].fill2_pos = pos
+		player_data[player].fill_pointed_thing = pointed_thing
+			
+		local inv = minetest.get_inventory({type = "player", name = player:get_player_name()})
+		local formspec = "size[8,6]label[2,0.5;Select item for filling]button_exit[7,0;1,1;quit;X]"
+		for y = 1, 4 do
+			for x = 1, 8 do
+				local name = inv:get_stack("main", ((y - 1) * 8) + x):get_name()
+				formspec =
+					formspec ..
+					"item_image_button[" ..
+					(x - 1) .. "," ..
+					(y + 1) .. ";1,1;" ..
+					name .. ";" ..
+					name .. ";]"
+			end
+		end
+		minetest.show_formspec(player:get_player_name(), "edit:fill", formspec)
+	elseif pos then
+		player_data[player].fill1_pos = pos
+	end
+end
 
 minetest.register_node("edit:fill",{
 	description = "Edit Fill",
 	tiles = {"edit_fill.png"},
 	inventory_image = "edit_fill.png",
-	groups = {snappy = 2, oddly_breakable_by_hand = 3},
+	groups = {snappy = 2, oddly_breakable_by_hand = 3, dig_immediate = 3},
 	range = 10,
-	on_place = function(itemstack, player, pointed_thing)
-		if not on_place_checks(player) then return end
-		
-		local itemstack, pos = minetest.item_place_node(itemstack, player, pointed_thing)
-		
-		if player_data[player].fill1_pos and pos then
-			local diff = vector.subtract(player_data[player].fill1_pos, pos)
-			local size = vector.add(vector.apply(diff, math.abs), 1)
-			if size.x * size.y * size.z > max_operation_volume then
-				display_size_error(player)
-				minetest.remove_node(player_data[player].fill1_pos)
-				player_data[player].fill1_pos = nil
-				minetest.remove_node(pos)
-				return
-			end
-		
-			player_data[player].fill2_pos = pos
-			player_data[player].fill_pointed_thing = pointed_thing
-				
-			local inv = minetest.get_inventory({type = "player", name = player:get_player_name()})
-			local formspec = "size[8,6]label[2,0.5;Select item for filling]button_exit[7,0;1,1;quit;X]"
-			for y = 1, 4 do
-				for x = 1, 8 do
-					local name = inv:get_stack("main", ((y - 1) * 8) + x):get_name()
-					formspec =
-						formspec ..
-						"item_image_button[" ..
-						(x - 1) .. "," ..
-						(y + 1) .. ";1,1;" ..
-						name .. ";" ..
-						name .. ";]"
-				end
-			end
-			minetest.show_formspec(player:get_player_name(), "edit:fill", formspec)
-		elseif pos then
-			player_data[player].fill1_pos = pos
-		end
-	end,
+	on_place = fill_on_place,
+	on_secondary_use = fill_on_place,
 	on_destruct = function(pos)
 		for player, data in pairs(player_data) do
 			local p1 = data.fill1_pos
@@ -526,7 +510,7 @@ minetest.register_on_player_receive_fields(function(player, formname, fields)
 		local def
 		for key, val in pairs(fields) do
 			if key == "quit" then return true end
-			if key == "" then item = "air" end
+			if key == "" then key = "air" end
 
 			name = key
 			def = minetest.registered_items[name]
@@ -632,8 +616,8 @@ minetest.register_on_player_receive_fields(function(player, formname, fields)
 			local schematic = minetest.read_schematic(file_path, {})
 			if not schematic then return true end
 			player_data[player].schematic = schematic
-			player_data[player].schematic._offset = vector.new(1, 1, 1)
-			minetest.chat_send_player(player:get_player_name(), dir_list[index] .. " loaded.")
+			player_data[player].schematic._offset = vector.new(0, 0, 0)
+			minetest.chat_send_player(player:get_player_name(), "\"" .. dir_list[index] .. "\" loaded.")
 			delete_paste_preview(player)
 		end
 		return true
@@ -672,7 +656,7 @@ minetest.register_on_player_receive_fields(function(player, formname, fields)
 		end
 		f:write(mts);
 		f:close()
-		minetest.chat_send_player(player:get_player_name(), schem_filename .. " saved.")
+		minetest.chat_send_player(player:get_player_name(), "\"" .. schem_filename .. "\" saved.")
 		return true
 	elseif formname == "edit:delete_schem" then
 		if
@@ -720,14 +704,6 @@ minetest.register_entity("edit:select_preview", {
 		use_texture_alpha = true,
 		glow = -1,
 		backface_culling = false,
-		textures = {
-			"edit_select_preview.png",
-			"edit_select_preview.png",
-			"edit_select_preview.png",
-			"edit_select_preview.png",
-			"edit_select_preview.png",
-			"edit_select_preview.png",
-		},
 	}
 })
 
@@ -777,7 +753,7 @@ local function show_paste_preview(player)
 	d.paste_preview:set_detach()
 	d.paste_preview_hud = player:hud_add({
 		hud_elem_type = "text",
-		text = "Press sneak + right or left to rotate.",
+		text = "Punch (left click) to rotate.",
 		position = {x = 0.5, y = 0.8},
 		z_index = 100,
 		number = 0xffffff
@@ -794,23 +770,42 @@ local function show_paste_preview(player)
 	)
 end
 
-local function get_player_pointed_thing_pos(player)
-	local look_dir = player:get_look_dir()
-	local pos1 = player:get_pos()
-	local eye_height = player:get_properties().eye_height
-	pos1.y = pos1.y + eye_height
-	local pos2 = vector.add(pos1, vector.multiply(look_dir, 10))
-	local pointed_thing = minetest.raycast(pos1, pos2, false, false):next()
-	if pointed_thing then
-		return pointed_thing_to_pos(pointed_thing)
-	end
-end
-
 local function hide_select_preview(player)
 	local d = player_data[player]
 	d.select_preview_shown = false
 	d.select_preview:set_properties({is_visible = false})
 	d.select_preview:set_attach(player)
+end
+
+local function set_select_preview_size(preview, size)
+	local preview_size = vector.add(size, vector.new(0.01, 0.01, 0.01))
+
+	local function combine(width, height)
+		local tex = ""
+		for x = 0, math.floor(width / 8) do
+			for y = 0, math.floor(height / 8) do
+				if #tex > 0 then tex = tex .. ":" end
+				tex = tex ..
+					(x * 8 * 16) ..
+					"," .. (y * 8 * 16) ..
+					"=edit_select_preview.png"
+			end
+		end
+		return "[combine:" .. (width * 16) .. "x" .. (height * 16) .. ":" .. tex
+	end
+
+	local x_tex = combine(size.z, size.y)
+	local y_tex = combine(size.x, size.z)
+	local z_tex = combine(size.x, size.y)
+
+	preview:set_properties({
+		visual_size = preview_size,
+		textures = {
+			y_tex, y_tex,
+			x_tex, x_tex,
+			z_tex, z_tex
+		}
+	})
 end
 
 minetest.register_globalstep(function(dtime)
@@ -820,7 +815,7 @@ minetest.register_globalstep(function(dtime)
 		
 		-- Paste preview
 		if item == "edit:paste" and d.schematic then
-			local pos = get_player_pointed_thing_pos(player)
+			local pos = pointed_thing_to_pos(get_pointed_thing_node(player))
 			if pos then
 				if not d.paste_preview or not d.paste_preview:get_pos() then
 					create_paste_preview(player)
@@ -832,52 +827,40 @@ minetest.register_globalstep(function(dtime)
 				if not vector.equals(old_pos, pos) then
 					player_data[player].paste_preview:set_pos(pos)
 				end
-				local control = player:get_player_control()
-				if control.sneak and control.left then
-					if d.paste_preview_can_rotate then
-						set_schematic_rotation(d.schematic, 90)
-						delete_paste_preview(player)
-						d.paste_preview_can_rotate = false
-					end
-				elseif control.sneak and control.right then
-					if d.paste_preview_can_rotate then
-						set_schematic_rotation(d.schematic, -90)
-						delete_paste_preview(player)
-						d.paste_preview_can_rotate = false
-					end
-				else d.paste_preview_can_rotate = true end
 			elseif d.paste_preview_hud then hide_paste_preview(player) end
 		elseif d.paste_preview_hud then hide_paste_preview(player) end
 		
 		-- Select preview
 		local node1_pos
 		local node2_pos
-		local include_node_pos = false
+		local use_under = false
 		if item == "edit:fill" and d.fill1_pos then
 			node1_pos = d.fill1_pos
 			if d.fill2_pos then node2_pos = d.fill2_pos end
-			include_node_pos = true
-		elseif item == "edit:copy" and d.copy_node1_pos then
-			node1_pos = d.copy_node1_pos
-		elseif item == "edit:delete" and d.delete_node1_pos then
-			node1_pos = d.delete_node1_pos
+		elseif item == "edit:copy" and d.copy_luaentity1 then
+			node1_pos = d.copy_luaentity1._pos
+			use_under = true
 		end
 		
 		if node1_pos then
 			if not node2_pos then
-				node2_pos = get_player_pointed_thing_pos(player)
+				local pointed_thing = get_pointed_thing_node(player)
+				if use_under then
+					node2_pos = pointed_thing.under
+				else
+					node2_pos = pointed_thing_to_pos(pointed_thing)
+				end
 			end
 			
 			if node2_pos then
 				local diff = vector.subtract(node1_pos, node2_pos)
 				local size = vector.apply(diff, math.abs)
-				if include_node_pos then size = vector.add(size, vector.new(1, 1, 1))
-				else size = vector.add(size, vector.new(-1, -1, -1)) end
+				size = vector.add(size, vector.new(1, 1, 1))
 				
 				local test = vector.apply(diff, math.abs)
 				local has_volume = test.x > 1 and test.y > 1 and test.z > 1
 				local size_too_big = size.x * size.y * size.z > max_operation_volume
-				if (include_node_pos or has_volume) and not size_too_big then
+				if not size_too_big then
 					if not d.select_preview or not d.select_preview:get_pos() then
 						d.select_preview = minetest.add_entity(node2_pos, "edit:select_preview")
 						d.select_preview_shown = true
@@ -890,8 +873,7 @@ minetest.register_globalstep(function(dtime)
 					local preview = d.select_preview
 					if not vector.equals(preview_pos, preview:get_pos()) then
 						preview:set_pos(preview_pos)
-						local preview_size = vector.add(size, vector.new(0.01, 0.01, 0.01))
-						preview:set_properties({visual_size = preview_size})
+						set_select_preview_size(preview, size)
 					end
 				elseif d.select_preview_shown then hide_select_preview(player) end
 			elseif d.select_preview_shown then hide_select_preview(player) end
