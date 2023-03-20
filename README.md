@@ -94,6 +94,6 @@ Edit tools and nodes can only be used by players with `edit` privilege.
 
 ## License
 
-CC0 by MrRar check [License](LICENSE) file, this mod was started by MrRar, 
+MIT by MrRar check [License](LICENSE.txt) file, this mod was started by MrRar, 
 minetest-mods community.
 

@@ -5,6 +5,8 @@ edit_paste_preview_max_entities (Paste preview max entities) int 2000
 # The maximum volume of any edit operation. Increase to allow larger operations.
 edit_max_operation_volume (Max edit operation volume) int 20000
 
-# Fast filling of nodes. This uses VoxelManip for fast node placement.
-# No node placement callbacks are called so some nodes might be broken.
-edit_use_fast_node_fill (Use fast node fill) bool false
+# When the fill operation has a larger volume then the specified number, fast node fill will be used.
+# To disable fast node placement, set the threshold to be equil to the max operation volume.
+# To disable slow node placement, set the threshold to 0.
+# With fast node placement, callbacks are not called so some nodes might be broken.
+edit_fast_node_fill_threshold (Fast node fill threshold volume) int 2000
