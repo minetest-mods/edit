@@ -54,12 +54,17 @@ Once a second fill node is placed, a dialog appears listing all items in the pla
 
 ### Open Tool
 
-Right click with this tool to load a .mts schematic for pasting from the the world subfolder `schems`.
+Right click with this tool to load .we or .mts schematics from the the world subfolder `schems` for pasting.
+Large .we files may fail to load.
 
 
 ### Save Tool
 
-Right click with this tool to save copied area as a .mts schematic in the the world subfolder `schems`.
+Right click with this tool to save copied area as a .we or .mts schematic in the the world subfolder `schems`.
+.mts is the native schematic for Minetest. However it does not support node meta data so some nodes will not be properly saved.
+For example, the contents of a chest will be missing.
+.we is the WorldEdit format. It supports node meta data but it produces much larger files than .mts.
+Large .we files may fail to load.
 
 
 ### Undo Tool
@@ -81,10 +86,12 @@ If the copied area has a larger number of nodes, some nodes will be randomly exc
 The maximum volume of any edit operation. Increase to allow larger operations.
 
 
-### edit_use_fast_node_fill
+### edit_fast_node_fill_threshold
 
-Fast filling of nodes. This uses VoxelManip for fast node placement.
-No node placement callbacks are called so some nodes might be broken.
+When the fill operation has a larger volume then the specified number, fast node fill will be used.
+To disable fast node placement, set the threshold to be equil to the max operation volume.
+To disable slow node placement, set the threshold to 0.
+With fast node placement, callbacks are not called so some nodes might be broken.
 
 
 ## Privileges
