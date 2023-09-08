@@ -37,6 +37,7 @@ local function read_minetest_schematic(file_path)
 	local schematic = minetest.read_schematic(file_path, {})
 	if schematic then
 		schematic._meta = {}
+		schematic._timers = {}
 		schematic._rotation = 0
 	end
 	return schematic
@@ -64,6 +65,7 @@ local function read_world_edit_schematic(file_path)
 
 	local schem_data = {}
 	local meta = {}
+	local timers = {}
 	local size = vector.new(x_max + 1, y_max + 1, z_max + 1)
 
 	local start = vector.new(1, 1, 1)
@@ -80,6 +82,11 @@ local function read_world_edit_schematic(file_path)
 			local key = minetest.hash_node_position(vector.new(x, y, z))
 			meta[key] = node.meta
 		end
+
+		if node.timer then
+			local key = minetest.hash_node_position(vector.new(x, y, z))
+			timers[key] = node.timer
+		end
 	end
 
 	-- Replace empty space with air nodes
@@ -93,6 +100,7 @@ local function read_world_edit_schematic(file_path)
 		size = size,
 		data = schem_data,
 		_meta = meta,
+		_timers = timers,
 		_rotation = 0,
 	}
 end

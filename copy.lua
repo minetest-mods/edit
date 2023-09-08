@@ -37,12 +37,7 @@ local function copy_on_place(itemstack, player, pointed_thing)
 			player:get_player_name(),
 			vector_to_string(start) .. " to " .. vector_to_string(_end) .. " copied." )
 	else
-		local obj_ref = minetest.add_entity(pos, "edit:copy")
-		if not obj_ref then return end
-		local luaentity = obj_ref:get_luaentity()
-		luaentity._pos = pos
-		luaentity._placer = player
-		d.copy_luaentity1 = luaentity
+		d.copy_luaentity1 = edit.add_marker("edit:copy", pos, player)
 	end
 end
 

@@ -16,14 +16,17 @@ This mod was inspired by the Fill Start and Fill End blocks in Manic Digger.
 
 ## Items
 
-| Name   | Item ID     | Image                         |
-| ------ | ----------- | ----------------------------- |
-| Copy   | edit:copy   | ![](textures/edit_copy.png)   |
-| Paste  | edit:paste  | ![](textures/edit_paste.png)  |
-| Fill   | edit:fill   | ![](textures/edit_fill.png)   |
-| Open   | edit:open   | ![](textures/edit_open.png)   |
-| Save   | edit:save   | ![](textures/edit_save.png)   |
-| Undo   | edit:undo   | ![](textures/edit_undo.png)   |
+| Name        | Item ID          | Image                              |
+| ----------- | ---------------- | ---------------------------------- |
+| Copy        | edit:copy        | ![](textures/edit_copy.png)        |
+| Paste       | edit:paste       | ![](textures/edit_paste.png)       |
+| Fill        | edit:fill        | ![](textures/edit_fill.png)        |
+| Open        | edit:open        | ![](textures/edit_open.png)        |
+| Save        | edit:save        | ![](textures/edit_save.png)        |
+| Undo        | edit:undo        | ![](textures/edit_undo.png)        |
+| Circle      | edit:circle      | ![](textures/edit_circle.png)      |
+| Mirror      | edit:mirror      | ![](textures/edit_mirror.png)      |
+| Screwdriver | edit:screwdriver | ![](textures/edit_screwdriver.png) |
 
 
 ## Dependencies
@@ -54,7 +57,7 @@ Once a second fill node is placed, a dialog appears listing all items in the pla
 
 ### Open Tool
 
-Right click with this tool to load .we or .mts schematics from the the world subfolder `schems` for pasting.
+Right click with this tool to load .we or .mts schematics from the world subfolder `schems` for pasting.
 Large .we files may fail to load.
 
 
@@ -71,7 +74,22 @@ Large .we files may fail to load.
 
 Right click with this tool to undo a world modification like filling or pasting.
 Use a second time to redo the undo.
-Only the most resent world modification can be undone.
+Only the most resent edit operation can be undone.
+
+
+### Circle Tool
+
+This tool is used to create round structures. Place the tool to activate circle mode. A center point marker is placed wherever the circle tool is placed. In circle mode, any node that is placed will be repeated in a circle around the center point. Node digging is also repeated in the same way. To place or dig a node without it repeating it in a circle, press the aux1 key (E) while placing or digging. To exit circle mode, punch the circle center marker.
+
+
+### Mirror Tool
+
+This tool is used to mirror the placement or digging of nodes. Place the tool to activate mirror mode. A center point marker is placed wherever the mirror tool is placed. In mirror mode all placed or dig nodes are mirrored. To place or dig a node without mirroring, press the aux1 key (E) while placing or digging. The mirror tool supports four modes, X, Z, X and Z, and eighths. To switch modes, right click the center marker. To exit mirror mode, punch the center marker.
+
+
+### Screwdriver
+
+This tool is used for rotating nodes that support rotation. Right clicking a node with the screwdriver rotates the node around the X or Z axis depending on the player's position. Left clicking a node with the screwdriver rotates the node clockwise around the Y axis. Param2 types `wallmounted`, `facedir`, and `degrotate` are supported. The node is rotated 90 degrees for all param2 types except `degrotate` where the node is rotated by either 1.5 or 15 degrees. If the aux1 key (E) is held while rotating a `degrotate` node, the rotation angle will be increased by 4x.
 
 
 ## Settings
@@ -89,7 +107,7 @@ The maximum volume of any edit operation. Increase to allow larger operations.
 ### edit_fast_node_fill_threshold
 
 When the fill operation has a larger volume then the specified number, fast node fill will be used.
-To disable fast node placement, set the threshold to be equil to the max operation volume.
+To disable fast node placement, set the threshold to be equal to the max operation volume.
 To disable slow node placement, set the threshold to 0.
 With fast node placement, callbacks are not called so some nodes might be broken.
 

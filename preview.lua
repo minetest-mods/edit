@@ -315,29 +315,35 @@ minetest.register_globalstep(function(dtime)
 		local node1_pos
 		local node2_pos
 		local pointed_pos
-		local use_under = false
 		local fill_selected = item == "edit:fill"
 		local copy_selected = item == "edit:copy"
+		local circle_selected = item == "edit:circle"
+		local mirror_selected = item == "edit:mirror"
 		if fill_selected then
-			node1_pos = d.fill1_pos
-			node2_pos = d.fill2_pos
+			if d.fill1 then
+				node1_pos = d.fill1._pos
+			end
+			if d.fill2 then
+				node2_pos = d.fill2._pos
+			end
 		elseif copy_selected then
 			if d.copy_luaentity1 then
 				node1_pos = d.copy_luaentity1._pos
 			end
-			use_under = true
 		end
 
 		if not node2_pos or not node1_pos then
 			local pointed_thing = edit.get_pointed_thing_node(player)
-			if use_under then
+			if circle_selected or mirror_selected then
+				pointed_pos = edit.get_half_node_pointed_pos(player)
+			elseif copy_selected then
 				pointed_pos = pointed_thing.under
 			else
 				pointed_pos = edit.pointed_thing_to_pos(pointed_thing)
 			end
 		end
 
-		if (fill_selected or copy_selected) and not node2_pos and pointed_pos then
+		if (fill_selected or copy_selected or circle_selected or mirror_selected) and not node2_pos and pointed_pos then
 			if not d.place_preview or not d.place_preview:get_pos() then
 				d.place_preview = minetest.add_entity(player:get_pos(), "edit:place_preview")
 				d.place_preview_shown = true

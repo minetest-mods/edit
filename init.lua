@@ -44,7 +44,8 @@ end
 
 minetest.register_on_joinplayer(function(player)
 	edit.player_data[player] = {
-		schematic_offset = vector.new(0, 0, 0)
+		schematic_offset = vector.new(0, 0, 0),
+		mirror_mode = "x",
 	}
 end)
 
@@ -59,6 +60,15 @@ minetest.register_on_leaveplayer(function(player)
 	end
 	if d.copy_luaentity1 then
 		d.copy_luaentity1.object:remove()
+	end
+	if d.circle_luaentity then
+		d.circle_luaentity.object:remove()
+	end
+	if d.fill1 then
+		d.fill1.object:remove()
+	end
+	if d.fill2 then
+		d.fill2.object:remove()
 	end
 	edit.player_data[player] = nil
 end)
@@ -76,7 +86,7 @@ function edit.get_pointed_thing_node(player)
 		end
 	end
 	local pos = vector.round(pos2)
-	return { type = "node", under = pos, above = pos }
+	return { type = "node", under = pos, above = pos, intersection_point = pos}
 end
 
 function edit.pointed_thing_to_pos(pointed_thing)
@@ -95,6 +105,89 @@ function edit.pointed_thing_to_pos(pointed_thing)
 	end
 end
 
+function edit.get_half_node_pointed_pos(player)
+	local intersection_point = edit.get_pointed_thing_node(player).intersection_point
+
+	local pos = vector.round(intersection_point)
+	local pos_list = {
+		pos,
+		vector.add(pos, vector.new(0.5, 0, 0.5)),
+		vector.add(pos, vector.new(-0.5, 0, -0.5)),
+		vector.add(pos, vector.new(0.5, 0, -0.5)),
+		vector.add(pos, vector.new(-0.5, 0, 0.5))
+	}
+
+	local shortest_length = 1
+	local pos
+	for i, p in pairs(pos_list) do
+		local length = vector.length(vector.subtract(intersection_point, p))
+		if length < shortest_length then
+			shortest_length = length
+			pos = p
+		end
+	end
+	return pos
+end
+
+local old_register_on_dignode = minetest.register_on_dignode
+local registered_on_dignode = {}
+minetest.register_on_dignode = function(func)
+	table.insert(registered_on_dignode, func)
+	old_register_on_dignode(func)
+end
+
+local old_register_on_placenode = minetest.register_on_placenode
+local registered_on_placenode = {}
+minetest.register_on_placenode = function(func)
+	table.insert(registered_on_placenode, func)
+	old_register_on_placenode(func)
+end
+
+function edit.place_node_like_player(player, node, pos)
+	local def = minetest.registered_items[node.name]
+	local is_node = minetest.registered_nodes[node.name] ~= nil
+	local itemstack = ItemStack(node.name)
+	local pointed_thing = {
+		type = "node",
+		above = pos,
+		under = pos,
+	}
+	minetest.remove_node(pos)
+	def.on_place(itemstack, player, pointed_thing)
+
+	local new_node = minetest.get_node(pos)
+	if
+		is_node and new_node.name == "air"
+		and minetest.get_item_group(node.name, "falling_node") == 0
+	then
+		new_node.name = node.name
+	end
+
+	new_node.param2 = node.param2 or new_node.param2
+	minetest.swap_node(pos, new_node)
+
+	if node.name == "air" then
+		local oldnode = {name = "air"}
+		for i, func in pairs(registered_on_dignode) do
+			func(pos, oldnode, player)
+		end
+	elseif is_node then
+		local oldnode = {name = "air"}
+		for i, func in pairs(registered_on_placenode) do
+			func(pos, node, player, oldnode, itemstack, pointed_thing)
+		end
+	end
+end
+
+function edit.add_marker(id, pos, player)
+	local obj_ref = minetest.add_entity(pos, id)
+	if not obj_ref then return end
+	local luaentity = obj_ref:get_luaentity()
+	luaentity._pos = pos
+	luaentity._placer = player
+	return luaentity
+end
+
 edit.modpath = minetest.get_modpath("edit")
 dofile(edit.modpath .. "/copy.lua")
 dofile(edit.modpath .. "/fill.lua")
@@ -104,3 +197,6 @@ dofile(edit.modpath .. "/preview.lua")
 dofile(edit.modpath .. "/save.lua")
 dofile(edit.modpath .. "/schematic.lua")
 dofile(edit.modpath .. "/undo.lua")
+dofile(edit.modpath .. "/circle.lua")
+dofile(edit.modpath .. "/mirror.lua")
+dofile(edit.modpath .. "/screwdriver.lua")

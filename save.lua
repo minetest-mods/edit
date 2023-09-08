@@ -42,11 +42,12 @@ local function serialize_world_edit_schematic(schematic)
 	local voxel_area = VoxelArea:new({MinEdge = start, MaxEdge = schematic.size})
 	local data = schematic.data
 	local meta = schematic._meta
+	local timers = schematic._timers
 
 	for i in voxel_area:iterp(start, schematic.size) do
 		local pos = voxel_area:position(i)
 		local name = data[i].name
-		local meta_key = minetest.hash_node_position(pos)
+		local hash = minetest.hash_node_position(pos)
 		if name ~= "air" then
 			table.insert(we, {
 				x = pos.x - 1,
@@ -54,7 +55,8 @@ local function serialize_world_edit_schematic(schematic)
 				z = pos.z - 1,
 				name = name,
 				param2 = data[i].param2,
-				meta = meta[meta_key]
+				meta = meta[hash],
+				timer = timers[hash]
 			})
 		end
 	end

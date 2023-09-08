@@ -3,6 +3,8 @@ function edit.schematic_from_map(pos, size)
 	schematic.size = size
 	schematic._pos = pos
 	schematic._meta = {}
+	schematic._timers = {}
+	schematic._rotation = 0
 
 	local start = vector.new(1, 1, 1)
 	local voxel_area = VoxelArea:new({MinEdge = start, MaxEdge = size})
@@ -44,13 +46,20 @@ function edit.schematic_from_map(pos, size)
 			local key = minetest.hash_node_position(offset)
 			schematic._meta[key] = meta
 		end
+
+		local timer = minetest.get_node_timer(node_pos)
+		local timeout = timer:get_timeout()
+		if timeout ~= 0 then
+			local key = minetest.hash_node_position(offset)
+			local elapsed = timer:get_elapsed()
+			schematic._timers[key] = {timeout, elapsed}
+		end
 	end
 
 	return schematic
 end
 
 function edit.set_schematic_rotation(schematic, angle)
-	if not schematic._rotation then schematic._rotation = 0 end
 	schematic._rotation = schematic._rotation + angle
 	if schematic._rotation < 0 then
 		schematic._rotation = schematic._rotation + 360
@@ -116,6 +125,25 @@ function edit.schematic_to_map(pos, schematic)
 		end
 		local node_pos = vector.add(pos, offset)
 		local meta = minetest.get_meta(node_pos)
-		meta:from_table(metadata)
+		if meta then
+			meta:from_table(metadata)
+		end
+	end
+
+	for hash, timer_data in pairs(schematic._timers) do
+		local offset = minetest.get_position_from_hash(hash)
+		offset = vector.subtract(offset, 1)
+		if schematic._rotation == 90 then
+			offset = vector.new(offset.z, offset.y, size.x - offset.x - 1)
+		elseif schematic._rotation == 180 then
+			offset = vector.new(size.x - offset.x - 1, offset.y, size.z - offset.z - 1)
+		elseif schematic._rotation == 270 then
+			offset = vector.new(size.z - offset.z - 1, offset.y, offset.x)
+		end
+		local node_pos = vector.add(pos, offset)
+		local timer = minetest.get_node_timer(node_pos)
+		if timer then
+			timer:set(timer_data[1], timer_data[2])
+		end
 	end
 end
