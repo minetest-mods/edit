@@ -50,25 +50,10 @@ minetest.register_on_joinplayer(function(player)
 end)
 
 minetest.register_on_leaveplayer(function(player)
-	edit.delete_paste_preview(player)
-	local d = edit.player_data[player]
-	if d.select_preview then
-		d.select_preview:remove()
-	end
-	if d.place_preview then
-		d.place_preview:remove()
-	end
-	if d.copy_luaentity1 then
-		d.copy_luaentity1.object:remove()
-	end
-	if d.circle_luaentity then
-		d.circle_luaentity.object:remove()
-	end
-	if d.fill1 then
-		d.fill1.object:remove()
-	end
-	if d.fill2 then
-		d.fill2.object:remove()
+	for key, value in pairs(edit.player_data[player]) do
+		if type(value) == "table" and value.object then
+			value.object:remove()
+		end
 	end
 	edit.player_data[player] = nil
 end)
@@ -133,14 +118,14 @@ local old_register_on_dignode = minetest.register_on_dignode
 local registered_on_dignode = {}
 minetest.register_on_dignode = function(func)
 	table.insert(registered_on_dignode, func)
-	old_register_on_dignode(func)
+	return old_register_on_dignode(func)
 end
 
 local old_register_on_placenode = minetest.register_on_placenode
 local registered_on_placenode = {}
 minetest.register_on_placenode = function(func)
 	table.insert(registered_on_placenode, func)
-	old_register_on_placenode(func)
+	return old_register_on_placenode(func)
 end
 
 function edit.place_node_like_player(player, node, pos)
@@ -188,6 +173,138 @@ function edit.add_marker(id, pos, player)
 	return luaentity
 end
 
+local function player_select_node_formspec(player)
+	local d = edit.player_data[player]
+	local search_value = d.player_select_node_search_value
+	local doing_search = #search_value > 0
+	local inv = minetest.get_inventory({type = "player", name = player:get_player_name()})
+	local size = doing_search and 12 * 8 or inv:get_size("main")
+	local width = doing_search and 12 or inv:get_width("main")
+	if width <= 0 then width = 8 end
+
+	local formspec_width = math.max(width, 8) + 0.4
+	local formspec_height = math.ceil(size / width) + 3.4
+
+	local search_results = {}
+	if doing_search then
+		local search_words = {}
+		for word in search_value:gmatch("([^%s]+)") do
+			table.insert(search_words, word:lower())
+		end
+
+		local search_results_done = false
+		for id, def in pairs(minetest.registered_items) do
+			if minetest.get_item_group(id, "not_in_creative_inventory") == 0 then
+				local add_node_to_results = true
+				for i, word in pairs(search_words) do
+					local description = def.description:lower() or ""
+					if not description:find(word) and not id:find(word) then
+						add_node_to_results = false
+						break
+					end
+				end
+				if add_node_to_results then
+					table.insert(search_results, id)
+					if #search_results > size then
+						search_results_done = true
+						break
+					end
+				end
+			end
+			if search_results_done then
+				break
+			end
+		end
+	end
+
+	local title = doing_search and "Search Results:" or "Inventory:"
+
+	if #search_results > size then title = title .. " (some omited)" end
+
+	local formspec = "formspec_version[4]size[" .. formspec_width .. "," .. formspec_height .. "]" ..
+		"button[0,0;0,0;minetest_sucks;" .. math.random() .. "]" .. -- Force Minetest to show this formspec
+		"label[0.5,0.7;" .. d.player_select_node_message .. "]" ..
+		"button_exit[" .. formspec_width - 1.2 .. ",0.2;1,1;quit;X]" ..
+		"field_close_on_enter[search_field;false]" ..
+		"label[0.2,1.7;Search all items]" ..
+		"field[0.2,2;3.5,0.8;search_field;;" .. search_value .. "]" ..
+		"image_button[3.7,2;0.8,0.8;search.png^[resize:48x48;search_button;]" ..
+		"button[4.5,2;0.8,0.8;cancel_search;X]" ..
+		"label[5.6,2.8;" .. title .. "]"
+
+	for i = 1, size do
+		local name
+		if doing_search then
+			name = search_results[i]
+		else
+			name = inv:get_stack("main", i):get_name()
+		end
+
+		if not name then break end
+
+		if name == "" then name = "air" end
+
+		local index = i - 1
+		local x = 0.2 + index % width
+		local y = 3.2 + math.floor(index / width)
+		formspec =
+			formspec ..
+			"item_image_button[" ..
+			x .. "," ..
+			y .. ";1,1;" ..
+			name .. ";" ..
+			name .. ";]"
+	end
+	edit.reliable_show_formspec(player, "edit:player_select_node", formspec)
+end
+
+minetest.register_on_player_receive_fields(function(player, formname, fields)
+	if formname ~= "edit:player_select_node" then return false end
+	local d = edit.player_data[player]
+
+	for key, val in pairs(fields) do
+		if key:find(":") or key == "air" then
+			if d.player_select_node_callback then
+				d.player_select_node_callback(player, key)
+				d.player_select_node_callback = nil
+				minetest.close_formspec(player:get_player_name(), "edit:player_select_node")
+			end
+			return true
+		end
+	end
+
+	if fields.quit then
+		if d.player_select_node_callback then
+			d.player_select_node_callback(player, nil)
+			d.player_select_node_callback = nil
+		end
+		return true
+	elseif fields.cancel_search then
+		fields.search_field = ""
+	end
+
+	if
+		fields.search_field and 
+		fields.search_field ~= d.player_select_node_search_value
+	then
+		d.player_select_node_search_value = fields.search_field
+		player_select_node_formspec(player)
+		return true
+	end
+	return true
+end)
+
+function edit.player_select_node(player, message, callback)
+	local d = edit.player_data[player]
+	if d.player_select_node_callback then
+		d.player_select_node_callback(player, nil)
+	end
+	d.player_select_node_callback = callback
+	d.player_select_node_search_value = d.player_select_node_search_value or ""
+	d.player_select_node_message = message
+	player_select_node_formspec(player)
+end
+
 edit.modpath = minetest.get_modpath("edit")
 dofile(edit.modpath .. "/copy.lua")
 dofile(edit.modpath .. "/fill.lua")
@@ -200,3 +317,4 @@ dofile(edit.modpath .. "/undo.lua")
 dofile(edit.modpath .. "/circle.lua")
 dofile(edit.modpath .. "/mirror.lua")
 dofile(edit.modpath .. "/screwdriver.lua")
+dofile(edit.modpath .. "/replace.lua")

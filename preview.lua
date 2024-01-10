@@ -18,7 +18,7 @@ function edit.rotate_paste_preview(player)
 	local d = edit.player_data[player]
 	local rot = d.schematic._rotation
 	local offset
-	d.paste_preview:set_yaw(-math.rad(rot))
+	d.paste_preview.object:set_yaw(-math.rad(rot))
 	local size = d.schematic.size
 	if rot == 90 or rot == 270 then
 		size = vector.new(size.z, size.y, size.x)
@@ -98,22 +98,9 @@ local function create_paste_preview(player)
 			objref:set_attach(base_objref, "", attach_pos, attach_rot)
 		end
 	end
-	edit.player_data[player].paste_preview = base_objref
+	edit.player_data[player].paste_preview = base_objref:get_luaentity()
 	edit.player_data[player].schematic._rotation = 0
 	edit.rotate_paste_preview(player)
-end
-
-function edit.delete_paste_preview(player)
-	local paste_preview = edit.player_data[player].paste_preview
-	if not paste_preview or not paste_preview:get_pos() then return end
-
-	local objrefs = paste_preview:get_children()
-	for i, objref in pairs(objrefs) do
-		objref:remove()
-	end
-	edit.player_data[player].paste_preview:remove()
-	edit.player_data[player].paste_preview_visable = false
-	edit.player_data[player].paste_preview = nil
 end
 
 minetest.register_entity("edit:select_preview", {
@@ -138,7 +125,13 @@ minetest.register_entity("edit:paste_preview_base", {
 		static_save = false,
 		visual_size  = {x = 1, y = 1},
 		textures = { "blank.png", "blank.png", "blank.png", "blank.png", "blank.png", "blank.png" },
-	}
+	},
+	on_deactivate = function(self)
+		local objrefs = self.object:get_children()
+		for i, objref in pairs(objrefs) do
+			objref:remove()
+		end
+	end
 })
 
 minetest.register_entity("edit:preview_node", {
@@ -159,20 +152,20 @@ local function hide_paste_preview(player)
 	-- This does not work right.
 	-- Some child entities do not become visable when you set is_visable back to true
 
-	for _, objref in pairs(d.paste_preview:get_children()) do
+	for _, objref in pairs(d.paste_preview.object:get_children()) do
 		objref:set_properties({is_visible = false})
 	end
-	d.paste_preview:set_attach(player)
+	d.paste_preview.object:set_attach(player)
 	player:hud_remove(d.paste_preview_hud)
 	d.paste_preview_hud = nil
 end
 
 local function show_paste_preview(player)
 	local d = edit.player_data[player]
-	for _, objref in pairs(d.paste_preview:get_children()) do
+	for _, objref in pairs(d.paste_preview.object:get_children()) do
 		objref:set_properties({is_visible = true})
 	end
-	d.paste_preview:set_detach()
+	d.paste_preview.object:set_detach()
 	d.paste_preview_hud = player:hud_add({
 		hud_elem_type = "text",
 		text = "Punch (left click) to rotate.",
@@ -188,15 +181,23 @@ local function show_paste_preview(player)
 			local pos = objref:get_pos()
 			if pos then objref:set_pos(pos) end
 		end,
-		d.paste_preview
+		d.paste_preview.object
 	)
+end
+
+function edit.delete_paste_preview(player)
+	local d = edit.player_data[player]
+	if d.paste_preview then
+		d.paste_preview.object:remove()
+		d.paste_preview = nil
+	end
 end
 
 local function hide_select_preview(player)
 	local d = edit.player_data[player]
 	d.select_preview_shown = false
-	d.select_preview:set_properties({ is_visible = false })
-	d.select_preview:set_attach(player)
+	d.select_preview.object:set_properties({ is_visible = false })
+	d.select_preview.object:set_attach(player)
 	player:hud_remove(d.select_preview_hud)
 	d.select_preview_hud = nil
 end
@@ -204,16 +205,18 @@ end
 local function update_select_preview(player, pos, size)
 	local d = edit.player_data[player]
 
-	if not d.select_preview or not d.select_preview:get_pos() then
-		d.select_preview = minetest.add_entity(player:get_pos(), "edit:select_preview")
+	if not d.select_preview or not d.select_preview.object:get_pos() then
+		local obj_ref = minetest.add_entity(player:get_pos(), "edit:select_preview")
+		if not obj_ref then return end
+		d.select_preview = obj_ref:get_luaentity()
 		d.select_preview_shown = true
 	elseif not d.select_preview_shown then
-		d.select_preview:set_detach()
-		d.select_preview:set_properties({is_visible = true})
+		d.select_preview.object:set_detach()
+		d.select_preview.object:set_properties({is_visible = true})
 		d.select_preview_shown = true
 	end
 
-	local preview = d.select_preview
+	local preview = d.select_preview.object
 	if vector.equals(pos, preview:get_pos()) then
 		return
 	end
@@ -295,18 +298,18 @@ minetest.register_globalstep(function(dtime)
 		if item == "edit:paste" and d.schematic then
 			local pos = edit.pointed_thing_to_pos(edit.get_pointed_thing_node(player))
 			if pos then
-				if not d.paste_preview or not d.paste_preview:get_pos() then
+				if not d.paste_preview or not d.paste_preview.object:get_pos() then
 					create_paste_preview(player)
 				end
 
 				if not d.paste_preview_hud then show_paste_preview(player) end
 
-				local old_pos = d.paste_preview:get_pos()
+				local old_pos = d.paste_preview.object:get_pos()
 				pos = vector.add(pos, d.paste_preview_offset)
 				set_schematic_offset(player)
 				pos = vector.add(pos, d.schematic_offset)
 				if not vector.equals(old_pos, pos) then
-					d.paste_preview:set_pos(pos)
+					d.paste_preview.object:set_pos(pos)
 				end
 			elseif d.paste_preview_hud then hide_paste_preview(player) end
 		elseif d.paste_preview_hud then hide_paste_preview(player) end
@@ -315,47 +318,36 @@ minetest.register_globalstep(function(dtime)
 		local node1_pos
 		local node2_pos
 		local pointed_pos
-		local fill_selected = item == "edit:fill"
-		local copy_selected = item == "edit:copy"
-		local circle_selected = item == "edit:circle"
-		local mirror_selected = item == "edit:mirror"
-		if fill_selected then
-			if d.fill1 then
-				node1_pos = d.fill1._pos
-			end
-			if d.fill2 then
-				node2_pos = d.fill2._pos
-			end
-		elseif copy_selected then
-			if d.copy_luaentity1 then
-				node1_pos = d.copy_luaentity1._pos
-			end
+		local tool_def = minetest.registered_items[item] or minetest.registered_items["air"]
+
+		if tool_def._edit_get_selection_points then
+			node1_pos, node2_pos = tool_def._edit_get_selection_points(player)
 		end
 
 		if not node2_pos or not node1_pos then
-			local pointed_thing = edit.get_pointed_thing_node(player)
-			if circle_selected or mirror_selected then
-				pointed_pos = edit.get_half_node_pointed_pos(player)
-			elseif copy_selected then
-				pointed_pos = pointed_thing.under
+			if tool_def._edit_get_pointed_pos then
+				pointed_pos = tool_def._edit_get_pointed_pos(player)
 			else
+				local pointed_thing = edit.get_pointed_thing_node(player)
 				pointed_pos = edit.pointed_thing_to_pos(pointed_thing)
 			end
 		end
 
-		if (fill_selected or copy_selected or circle_selected or mirror_selected) and not node2_pos and pointed_pos then
-			if not d.place_preview or not d.place_preview:get_pos() then
-				d.place_preview = minetest.add_entity(player:get_pos(), "edit:place_preview")
+		if minetest.get_item_group(item, "edit_place_preview") ~= 0 and not node2_pos and pointed_pos then
+			if not d.place_preview or not d.place_preview.object:get_pos() then
+				local obj_ref = minetest.add_entity(player:get_pos(), "edit:place_preview")
+				if not obj_ref then return end
+				d.place_preview = obj_ref:get_luaentity()
 				d.place_preview_shown = true
 				d.place_preview_item = nil
 			elseif not d.place_preview_shown then
-				d.place_preview:set_properties({ is_visible = true })
-				d.place_preview:set_detach()
+				d.place_preview.object:set_properties({ is_visible = true })
+				d.place_preview.object:set_detach()
 				d.place_preview_shown = true
 			end
 
-			if not vector.equals(d.place_preview:get_pos(), pointed_pos) then
-				d.place_preview:set_pos(pointed_pos)
+			if not vector.equals(d.place_preview.object:get_pos(), pointed_pos) then
+				d.place_preview.object:set_pos(pointed_pos)
 			end
 
 			if d.place_preview_item ~= item then
@@ -363,13 +355,13 @@ minetest.register_globalstep(function(dtime)
 					"^[opacity:150"
 
 				d.place_preview_item = item
-				d.place_preview:set_properties({
+				d.place_preview.object:set_properties({
 					textures = { tex, tex, tex, tex, tex, tex }
 				})
 			end
 		elseif d.place_preview_shown then
-			d.place_preview:set_properties({ is_visible = false })
-			d.place_preview:set_attach(player)
+			d.place_preview.object:set_properties({ is_visible = false })
+			d.place_preview.object:set_attach(player)
 			d.place_preview_shown = false
 		end
 

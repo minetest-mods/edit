@@ -1,7 +1,6 @@
 local function place_circle(player, pos, node)
 	local player_data = edit.player_data[player]
 	if
-		not player or
 		player:get_player_control().aux1 or
 		not player_data or
 		not player_data.circle_luaentity
@@ -70,15 +69,11 @@ end
 
 minetest.register_on_dignode(function(pos, oldnode, digger)
 	if not digger or not digger:is_player() then return end
-	local player_data = edit.player_data[digger]
-	if player_data.ignore_node_placement then return end
-	return place_circle(digger, pos, {name = "air"})
+	return place_circle(digger, pos, {name = "air"}) or true
 end)
 
 minetest.register_on_placenode(function(pos, newnode, placer, oldnode, itemstack, pointed_thing)
 	if not placer then return end
-	local player_data = edit.player_data[placer]
-	if player_data.ignore_node_placement then return end
 	return place_circle(placer, pos, newnode)
 end)
 
@@ -108,8 +103,12 @@ minetest.register_tool("edit:circle",{
 	tiles = {"edit_circle.png"},
 	inventory_image = "edit_circle.png",
 	range = 10,
+	groups = {edit_place_preview = 1,},
 	on_place = circle_tool_on_place,
 	on_secondary_use = circle_tool_on_place,
+	_edit_get_pointed_pos = function(player)
+		return edit.get_half_node_pointed_pos(player)
+	end,
 })
 
 minetest.register_entity("edit:circle", {

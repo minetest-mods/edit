@@ -2,7 +2,6 @@ local function do_mirror(player, pos, node)
 	local d = edit.player_data[player]
 
 	if
-		not player or
 		player:get_player_control().aux1 or
 		not d or
 		not d.mirror_luaentity
@@ -13,6 +12,12 @@ local function do_mirror(player, pos, node)
 
 	local center = d.mirror_luaentity._pos
 	local offset = vector.subtract(pos, center)
+
+	-- Undo
+	local length = math.max(math.abs(offset.x), math.abs(offset.z))
+	local start = vector.subtract(center, vector.new(length, -offset.y, length))
+	local size = vector.new(length * 2 + 1, 1, length * 2 + 1)
+	d.undo_schematic = edit.schematic_from_map(start, size)
 
 	if d.mirror_mode == "x" then
 		offset.x = -offset.x
@@ -42,20 +47,17 @@ local function do_mirror(player, pos, node)
 			edit.place_node_like_player(player, node, vector.add(center, offset))
 		end
 	end
+
 	d.ignore_node_placement = nil
 end
 
 minetest.register_on_dignode(function(pos, oldnode, digger)
 	if not digger or not digger:is_player() then return end
-	local player_data = edit.player_data[digger]
-	if player_data.ignore_node_placement then return end
 	return do_mirror(digger, pos, {name = "air"})
 end)
 
 minetest.register_on_placenode(function(pos, newnode, placer, oldnode, itemstack, pointed_thing)
 	if not placer or not placer:is_player() then return end
-	local player_data = edit.player_data[placer]
-	if player_data.ignore_node_placement then return end
 	return do_mirror(placer, pos, newnode)
 end)
 
@@ -69,13 +71,8 @@ local function mirror_tool_on_place(itemstack, player, pointed_thing)
 
 	local pos = edit.get_half_node_pointed_pos(player)
 
-	local obj_ref = minetest.add_entity(pos, "edit:mirror")
-	if not obj_ref then return end
-	local luaentity = obj_ref:get_luaentity()
-	luaentity._pos = pos
-	luaentity._placer = player
-	luaentity:_update_borders()
-	d.mirror_luaentity = luaentity
+	d.mirror_luaentity = edit.add_marker("edit:mirror", pos, player)
+	d.mirror_luaentity:_update_borders()
 
 	d.mirror_hud = player:hud_add({
 		hud_elem_type = "text",
@@ -93,8 +90,12 @@ minetest.register_tool("edit:mirror", {
 	tiles = {"edit_mirror.png"},
 	inventory_image = "edit_mirror.png",
 	range = 10,
+	groups = {edit_place_preview = 1,},
 	on_place = mirror_tool_on_place,
 	on_secondary_use = mirror_tool_on_place,
+	_edit_get_pointed_pos = function(player)
+		return edit.get_half_node_pointed_pos(player)
+	end,
 })
 
 minetest.register_entity("edit:mirror_border", {
@@ -106,7 +107,6 @@ minetest.register_entity("edit:mirror_border", {
 		static_save = false,
 		use_texture_alpha = true,
 		glow = -1,
-		backface_culling = false,
 		hp_max = 1,
 		pointable = false,
 		backface_culling = true,

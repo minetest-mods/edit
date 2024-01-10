@@ -21,6 +21,7 @@ This mod was inspired by the Fill Start and Fill End blocks in Manic Digger.
 | Copy        | edit:copy        | ![](textures/edit_copy.png)        |
 | Paste       | edit:paste       | ![](textures/edit_paste.png)       |
 | Fill        | edit:fill        | ![](textures/edit_fill.png)        |
+| Replace     | edit:replace     | ![](textures/edit_replace.png)     |
 | Open        | edit:open        | ![](textures/edit_open.png)        |
 | Save        | edit:save        | ![](textures/edit_save.png)        |
 | Undo        | edit:undo        | ![](textures/edit_undo.png)        |
@@ -48,11 +49,18 @@ When the copy tool is placed at opposite corners of an area, they select the are
 The paste tool is used for pasting the area copied by the copy tool or a schematic loaded with the open tool. When a paste tool is placed, the copied area or schematic is placed at the corner of the paste tool. The copied area can be rotated by punching while holding the paste tool.
 
 
-### Fill Node
+### Fill Tool
 
-Fill nodes are used to fill a 3D area with a certain item. Start by placing two fill nodes at opposite corners of the desired area. The selected area includes the positions of the fill nodes themselves as shown in the figure.
+The fill tool is used to fill a 3D area with a certain item. Start by placing the fill tool two times at opposite corners of the desired area. The selected area includes the positions of the fill markers themselves as shown in the figure.
 
-Once a second fill node is placed, a dialog appears listing all items in the players inventory. Clicking an item will cause it to be used used for filling the selected area. Clicking on a blank slot will cause the selected area to be filled with air. To cancel the fill, press the "X".
+Once a second fill marker is placed, a dialog appears listing all items in the players inventory. A search field is also available to search all items. Clicking an item will cause it to be used used for filling the selected area. Clicking on a blank inventory slot will cause the selected area to be filled with air. To cancel the fill, press the "X".
+
+
+### Replace Tool
+
+The replace tool is used to replace certain nodes in a 3D area with a selected item. Start by placing the replace tool two times at opposite corners of the desired area. The selected area includes the positions of the replace markers themselves as shown in the figure.
+
+Once a second replace marker is placed, a dialog appears listing all node types in the selected area. Check the nodes that should be replaced and then press the "OK" button to proceed with the next step. Next a dialog will pop up showing all the items in the players inventory. A search field is also available to search all items. Clicking an item will cause it to be used used to replace the nodes that were checked earlier. Clicking on a blank inventory slot will cause the checked nodes to be replaced with air. To cancel the replace, press the "X".
 
 
 ### Open Tool

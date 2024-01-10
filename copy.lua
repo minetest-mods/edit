@@ -45,10 +45,17 @@ minetest.register_tool("edit:copy",{
 	description = "Edit Copy",
 	tiles = {"edit_copy.png"},
 	inventory_image = "edit_copy.png",
-	groups = {snappy = 2, oddly_breakable_by_hand = 3},
 	range = 10,
+	groups = {edit_place_preview = 1,},
 	on_place = copy_on_place,
 	on_secondary_use = copy_on_place,
+	_edit_get_selection_points = function(player)
+		local d = edit.player_data[player]
+		return d.copy_luaentity1 and d.copy_luaentity1._pos
+	end,
+	_edit_get_pointed_pos = function(player)
+		return edit.get_pointed_thing_node(player).under
+	end,
 })
 
 minetest.register_entity("edit:copy", {
