@@ -1,5 +1,5 @@
-local function player_select_node_formspec(player)
-	edit.player_select_node(player, "Select item to use for fill", function(player, name)
+local function player_select_item_formspec(player)
+	edit.player_select_item(player, "Select item to use for fill", function(player, item_str)
 		local d = edit.player_data[player]
 
 		if
@@ -12,7 +12,9 @@ local function player_select_node_formspec(player)
 
 		d.fill1.object:remove()
 
-		if not name then return end
+		local item = ItemStack(item_str)
+		local name = item:get_name()
+		if name == "" then return end
 
 		local def = minetest.registered_items[name]
 
@@ -63,13 +65,13 @@ local function player_select_node_formspec(player)
 			voxel_manip:write_to_map(true)
 			voxel_manip:update_liquids()
 		else
-			local node = {name = name, param2 = param2}
+			local node = {name = item_str, param2 = param2}
 			-- Work top to bottom so we can remove falling nodes
 			for x = _end.x, start.x, -1 do
 				for y = _end.y, start.y, -1 do
 					for z = _end.z, start.z, -1 do
 						local pos = vector.new(x, y, z)
-						edit.place_node_like_player(player, node, pos)
+						edit.place_item_like_player(player, node, pos)
 					end
 				end
 			end
@@ -100,7 +102,7 @@ local function fill_on_place(itemstack, player, pointed_thing)
 			return
 		end
 
-		player_select_node_formspec(player)
+		player_select_item_formspec(player)
 	elseif pos then
 		player_data.fill1 = edit.add_marker("edit:fill", pos, player)
 	end
@@ -111,7 +113,7 @@ minetest.register_tool("edit:fill", {
 	tiles = {"edit_fill.png"},
 	inventory_image = "edit_fill.png",
 	range = 10,
-	groups = {edit_place_preview = 1,},
+	groups = {edit_place_preview = 1, edit_box_select_preview = 1},
 	on_place = fill_on_place,
 	on_secondary_use = fill_on_place,
 	_edit_get_selection_points = function(player)

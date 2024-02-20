@@ -103,6 +103,135 @@ local function create_paste_preview(player)
 	edit.rotate_paste_preview(player)
 end
 
+minetest.register_entity("edit:polygon_preview", {
+	initial_properties = {
+		visual = "cube",
+		physical = false,
+		pointable = false,
+		collide_with_objects = false,
+		static_save = false,
+		use_texture_alpha = true,
+		glow = -1,
+		backface_culling = false,
+		visual_size = { x = 1.05, y = 1.05 },
+		textures = {
+			"edit_select_preview.png^[sheet:8x8:1,1",
+			"edit_select_preview.png^[sheet:8x8:1,1",
+			"edit_select_preview.png^[sheet:8x8:1,1",
+			"edit_select_preview.png^[sheet:8x8:1,1",
+			"edit_select_preview.png^[sheet:8x8:1,1",
+			"edit_select_preview.png^[sheet:8x8:1,1",
+		},
+	}
+})
+
+local function hide_polygon_preview(player)
+	local player_data = edit.player_data[player]
+	local previews = player_data.polygon_previews
+	for i, obj_ref in ipairs(previews) do
+		obj_ref:set_properties({is_visible = false})
+	end
+
+	if player_data.polygon_preview_hud then
+		player:hud_remove(player_data.polygon_preview_hud)
+		player_data.polygon_preview_hud = nil
+	end
+
+	player_data.polygon_preview_shown = false
+end
+
+local function show_polygon_preview(player, show_polygon_hud)
+	local player_data = edit.player_data[player]
+
+	if not player_data.polygon_previews then
+		player_data.polygon_previews = {}
+		player_data.polygon_previews.object = player_data.polygon_previews
+		player_data.polygon_previews.object.remove = function(self)
+			for i, luaentity in ipairs(table.copy(self)) do
+				luaentity:remove()
+			end
+		end
+	end
+
+	for i, obj_ref in ipairs(player_data.polygon_previews) do
+		obj_ref:set_properties({is_visible = true})
+	end
+
+	player_data.polygon_preview_shown = true
+end
+
+local function update_polygon_preview(player, marker_pos_list, show_polygon_hud)
+	local player_pos = player:get_pos()
+	local player_data = edit.player_data[player]
+
+	local show_full_preview = true
+	local bounding_box_min = vector.copy(marker_pos_list[1])
+	local bounding_box_max = vector.copy(marker_pos_list[1])
+	for index, axis in pairs({"x", "y", "z"}) do
+		for i, pos in ipairs(marker_pos_list) do
+			bounding_box_min[axis] = math.min(bounding_box_min[axis], pos[axis])
+			bounding_box_max[axis] = math.max(bounding_box_max[axis], pos[axis])
+		end
+		if
+			bounding_box_max[axis] - bounding_box_min[axis] + 1 >
+			edit.polygon_preview_wire_frame_threshold
+		then
+			show_full_preview = false
+		end
+	end
+
+	local pos_list = {}
+
+	local volume = vector.add(vector.subtract(bounding_box_max, bounding_box_min), vector.new(1, 1, 1))
+	if volume.x * volume.y * volume.z <= edit.max_operation_volume then
+		if #marker_pos_list == 2 or not show_full_preview then
+			table.insert_all(
+				pos_list,
+				edit.calculate_line_points(marker_pos_list[1], marker_pos_list[2])
+			)
+		end
+
+		for i = 3, #marker_pos_list do
+			if show_full_preview then
+				table.insert_all(
+					pos_list,
+					edit.calculate_triangle_points(
+						marker_pos_list[i],
+						marker_pos_list[i - 1],
+						marker_pos_list[1]
+					)
+				)
+			else
+				table.insert_all(
+					pos_list,
+					edit.calculate_line_points(marker_pos_list[i], marker_pos_list[i - 1])
+				)
+				table.insert_all(
+					pos_list,
+					edit.calculate_line_points(marker_pos_list[i], marker_pos_list[1])
+				)
+			end
+		end
+	end
+
+	local preview_objs = player_data.polygon_previews
+	if #preview_objs > #pos_list then
+		for i = #pos_list + 1, #preview_objs do
+			preview_objs[#pos_list + 1]:remove()
+			table.remove(preview_objs, #pos_list + 1)
+		end
+	elseif #preview_objs < #pos_list then
+		for i = #preview_objs + 1, #pos_list do
+			local obj_ref = minetest.add_entity(player_pos, "edit:polygon_preview")
+			table.insert(preview_objs, obj_ref)
+		end
+	end
+
+	for i, pos in pairs(pos_list) do
+		preview_objs[i]:set_pos(pos)
+	end
+end
+
 minetest.register_entity("edit:select_preview", {
 	initial_properties = {
 		visual = "cube",
@@ -289,6 +418,36 @@ local function set_schematic_offset(player)
 	d.schematic_offset = offset
 end
 
+local function show_place_preview(player, pos, item)
+	local d = edit.player_data[player]
+
+	if not d.place_preview or not d.place_preview.object:get_pos() then
+		local obj_ref = minetest.add_entity(player:get_pos(), "edit:place_preview")
+		if not obj_ref then return end
+		d.place_preview = obj_ref:get_luaentity()
+		d.place_preview_shown = true
+		d.place_preview_item = nil
+	elseif not d.place_preview_shown then
+		d.place_preview.object:set_properties({ is_visible = true })
+		d.place_preview.object:set_detach()
+		d.place_preview_shown = true
+	end
+
+	if not vector.equals(d.place_preview.object:get_pos(), pos) then
+		d.place_preview.object:set_pos(pos)
+	end
+
+	if d.place_preview_item ~= item then
+		local tex = minetest.registered_items[item].tiles[1] ..
+			"^[opacity:150"
+
+		d.place_preview_item = item
+		d.place_preview.object:set_properties({
+			textures = { tex, tex, tex, tex, tex, tex }
+		})
+	end
+end
+
 minetest.register_globalstep(function(dtime)
 	for _, player in pairs(minetest.get_connected_players()) do
 		local item = player:get_wielded_item():get_name()
@@ -314,70 +473,96 @@ minetest.register_globalstep(function(dtime)
 			elseif d.paste_preview_hud then hide_paste_preview(player) end
 		elseif d.paste_preview_hud then hide_paste_preview(player) end
 
-		-- Select preview
-		local node1_pos
-		local node2_pos
-		local pointed_pos
-		local tool_def = minetest.registered_items[item] or minetest.registered_items["air"]
+		-- Stuff for Place preview and box select preview
+		local marker1_pos
+		local marker2_pos
+		local should_show_place_preview = minetest.get_item_group(item, "edit_place_preview") ~= 0
+		local should_use_box_select_preview = minetest.get_item_group(item, "edit_box_select_preview") ~= 0
 
-		if tool_def._edit_get_selection_points then
-			node1_pos, node2_pos = tool_def._edit_get_selection_points(player)
+		if should_show_place_preview or should_use_box_select_preview then
+			local tool_def = minetest.registered_items[item]
+			if tool_def._edit_get_selection_points then
+				marker1_pos, marker2_pos = tool_def._edit_get_selection_points(player)
+			end
+			if not marker2_pos then
+				if tool_def._edit_get_pointed_pos then
+					marker2_pos = tool_def._edit_get_pointed_pos(player)
+				else
+					local pointed_thing = edit.get_pointed_thing_node(player)
+					marker2_pos = edit.pointed_thing_to_pos(pointed_thing)
+				end
+			else should_show_place_preview = false end
 		end
 
-		if not node2_pos or not node1_pos then
-			if tool_def._edit_get_pointed_pos then
-				pointed_pos = tool_def._edit_get_pointed_pos(player)
-			else
-				local pointed_thing = edit.get_pointed_thing_node(player)
-				pointed_pos = edit.pointed_thing_to_pos(pointed_thing)
-			end
-		end
+		-- Box select preview
+		if should_use_box_select_preview and marker1_pos and marker2_pos then
+			local diff = vector.subtract(marker1_pos, marker2_pos)
+			local size = vector.apply(diff, math.abs)
+			size = vector.add(size, vector.new(1, 1, 1))
+			local size_too_big = size.x * size.y * size.z > edit.max_operation_volume
+			if not size_too_big then
+				local preview_pos = vector.add(marker2_pos, vector.multiply(diff, 0.5))
+				update_select_preview(player, preview_pos, size)
+			elseif d.select_preview_shown then hide_select_preview(player) end
+		elseif d.select_preview_shown then hide_select_preview(player) end
 
-		if minetest.get_item_group(item, "edit_place_preview") ~= 0 and not node2_pos and pointed_pos then
-			if not d.place_preview or not d.place_preview.object:get_pos() then
-				local obj_ref = minetest.add_entity(player:get_pos(), "edit:place_preview")
-				if not obj_ref then return end
-				d.place_preview = obj_ref:get_luaentity()
-				d.place_preview_shown = true
-				d.place_preview_item = nil
-			elseif not d.place_preview_shown then
-				d.place_preview.object:set_properties({ is_visible = true })
-				d.place_preview.object:set_detach()
-				d.place_preview_shown = true
-			end
-
-			if not vector.equals(d.place_preview.object:get_pos(), pointed_pos) then
-				d.place_preview.object:set_pos(pointed_pos)
-			end
-
-			if d.place_preview_item ~= item then
-				local tex = minetest.registered_items[item].tiles[1] ..
-					"^[opacity:150"
-
-				d.place_preview_item = item
-				d.place_preview.object:set_properties({
-					textures = { tex, tex, tex, tex, tex, tex }
-				})
-			end
+		-- Place preview
+		if should_show_place_preview and marker2_pos then
+			show_place_preview(player, marker2_pos, item)
 		elseif d.place_preview_shown then
 			d.place_preview.object:set_properties({ is_visible = false })
 			d.place_preview.object:set_attach(player)
 			d.place_preview_shown = false
 		end
 
-		if not node2_pos then
-			node2_pos = pointed_pos
+		-- Polygon preview
+		if item == "edit:polygon" or item == "edit:line" then
+			if marker2_pos then
+				if not d.polygon_preview_shown then
+					show_polygon_preview(player)
+				end
+
+				if not d.old_pointed_pos then d.old_pointed_pos = vector.new(0.5, 0.5, 0.5) end
+
+				if
+					d.old_polygon_item ~= item or
+					not vector.equals(d.old_pointed_pos, marker2_pos)
+				then
+					if item == "edit:polygon" then
+						local markers = d.polygon_markers or {}
+						local marker_pos_list = {}
+						for i, marker in ipairs(markers) do
+							table.insert(marker_pos_list, marker._pos)
+						end
+						table.insert(marker_pos_list, marker2_pos)
+						update_polygon_preview(player, marker_pos_list)
+					else
+						local marker_pos_list = {}
+						if marker1_pos then table.insert(marker_pos_list, marker1_pos) end
+						table.insert(marker_pos_list, marker2_pos)
+						update_polygon_preview(player, marker_pos_list)
+					end
+					d.old_pointed_pos = marker2_pos
+					d.old_polygon_item = item
+				end
+			end
+		elseif d.polygon_preview_shown then
+			hide_polygon_preview(player)
 		end
 
-		if node1_pos and node2_pos then
-			local diff = vector.subtract(node1_pos, node2_pos)
-			local size = vector.apply(diff, math.abs)
-			size = vector.add(size, vector.new(1, 1, 1))
-			local size_too_big = size.x * size.y * size.z > edit.max_operation_volume
-			if not size_too_big then
-				local preview_pos = vector.add(node2_pos, vector.multiply(diff, 0.5))
-				update_select_preview(player, preview_pos, size)
-			elseif d.select_preview_shown then hide_select_preview(player) end
-		elseif d.select_preview_shown then hide_select_preview(player) end
+		if item == "edit:polygon" then
+			if not d.polygon_preview_hud then
+				d.polygon_preview_hud = player:hud_add({
+					hud_elem_type = "text",
+					text = "Finish the polygon by placing a marker on the green marker",
+					position = {x = 0.5, y = 0.8},
+					z_index = 100,
+					number = 0xffffff
+				})
+			end
+		elseif d.polygon_preview_hud then
+			player:hud_remove(d.polygon_preview_hud)
+			d.polygon_preview_hud = nil
+		end
 	end
 end)

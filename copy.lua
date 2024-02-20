@@ -46,7 +46,7 @@ minetest.register_tool("edit:copy",{
 	tiles = {"edit_copy.png"},
 	inventory_image = "edit_copy.png",
 	range = 10,
-	groups = {edit_place_preview = 1,},
+	groups = {edit_place_preview = 1, edit_box_select_preview = 1},
 	on_place = copy_on_place,
 	on_secondary_use = copy_on_place,
 	_edit_get_selection_points = function(player)

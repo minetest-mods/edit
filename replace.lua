@@ -102,7 +102,7 @@ minetest.register_tool("edit:replace", {
 	tiles = {"edit_replace.png"},
 	inventory_image = "edit_replace.png",
 	range = 10,
-	groups = {edit_place_preview = 1,},
+	groups = {edit_place_preview = 1, edit_box_select_preview = 1},
 	on_place = replace_on_place,
 	on_secondary_use = replace_on_place,
 	_edit_get_selection_points = function(player)
@@ -187,7 +187,7 @@ minetest.register_on_player_receive_fields(function(player, formname, fields)
 
 	if not fields.continue then return true end
 
-	edit.player_select_node(player, "Select item to replace nodes", function(player, name)
+	edit.player_select_item(player, "Select item to replace nodes", function(player, name)
 		if
 			not d.replace1 or not d.replace2 or
 			not d.replace_source_nodes or
@@ -233,7 +233,7 @@ minetest.register_on_player_receive_fields(function(player, formname, fields)
 						if is_node then
 							minetest.swap_node(pos, node)
 						else
-							edit.place_node_like_player(player, node, pos)
+							edit.place_item_like_player(player, node, pos)
 						end
 					end
 				end

@@ -47,7 +47,7 @@ local function place_circle(player, pos, node)
 					offset1.y * factor.y,
 					offset1.z * factor.z )
 				local pos1 = vector.add(center, offset1)
-				edit.place_node_like_player(player, node, pos1)
+				edit.place_item_like_player(player, node, pos1)
 
 				local offset2 = vector.new(
 					offset1.z,
@@ -55,7 +55,7 @@ local function place_circle(player, pos, node)
 					offset1.x
 				)
 				local pos2 = vector.add(center, offset2)
-				edit.place_node_like_player(player, node, pos2)
+				edit.place_item_like_player(player, node, pos2)
 			end
 		end
 

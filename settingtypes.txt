@@ -10,3 +10,7 @@ edit_max_operation_volume (Max edit operation volume) int 20000
 # To disable slow node placement, set the threshold to 0.
 # With fast node placement, callbacks are not called so some nodes might be broken.
 edit_fast_node_fill_threshold (Fast node fill threshold volume) int 2000
+
+# If one side of the polygon preview is greater than this setting,
+# a wire frame is used instead of the full preview.
+edit_polygon_preview_wire_frame_threshold (Polygon preview wire frame threshold) int 40

@@ -4,6 +4,7 @@ edit.player_data = {}
 edit.paste_preview_max_entities = tonumber(minetest.settings:get("edit_paste_preview_max_entities") or 2000)
 edit.max_operation_volume = tonumber(minetest.settings:get("edit_max_operation_volume") or 20000)
 edit.fast_node_fill_threshold = tonumber(minetest.settings:get("edit_fast_node_fill_threshold") or 2000)
+edit.polygon_preview_wire_frame_threshold = tonumber(minetest.settings:get("edit_polygon_preview_wire_frame_threshold") or 40)
 
 minetest.register_privilege("edit", {
 	description = "Allows usage of edit mod nodes",
@@ -128,10 +129,13 @@ minetest.register_on_placenode = function(func)
 	return old_register_on_placenode(func)
 end
 
-function edit.place_node_like_player(player, node, pos)
+function edit.place_item_like_player(player, item, pos)
+	local node = table.copy(item)
+	local itemstack = ItemStack(item.name)
+	node.name = itemstack:get_name()
 	local def = minetest.registered_items[node.name]
+	if not def then return end
 	local is_node = minetest.registered_nodes[node.name] ~= nil
-	local itemstack = ItemStack(node.name)
 	local pointed_thing = {
 		type = "node",
 		above = pos,
@@ -173,9 +177,9 @@ function edit.add_marker(id, pos, player)
 	return luaentity
 end
 
-local function player_select_node_formspec(player)
+local function player_select_item_formspec(player)
 	local d = edit.player_data[player]
-	local search_value = d.player_select_node_search_value
+	local search_value = d.player_select_item_search_value
 	local doing_search = #search_value > 0
 	local inv = minetest.get_inventory({type = "player", name = player:get_player_name()})
 	local size = doing_search and 12 * 8 or inv:get_size("main")
@@ -223,7 +227,7 @@ local function player_select_node_formspec(player)
 
 	local formspec = "formspec_version[4]size[" .. formspec_width .. "," .. formspec_height .. "]" ..
 		"button[0,0;0,0;minetest_sucks;" .. math.random() .. "]" .. -- Force Minetest to show this formspec
-		"label[0.5,0.7;" .. d.player_select_node_message .. "]" ..
+		"label[0.5,0.7;" .. d.player_select_item_message .. "]" ..
 		"button_exit[" .. formspec_width - 1.2 .. ",0.2;1,1;quit;X]" ..
 		"field_close_on_enter[search_field;false]" ..
 		"label[0.2,1.7;Search all items]" ..
@@ -237,7 +241,7 @@ local function player_select_node_formspec(player)
 		if doing_search then
 			name = search_results[i]
 		else
-			name = inv:get_stack("main", i):get_name()
+			name = inv:get_stack("main", i):to_string()
 		end
 
 		if not name then break end
@@ -255,28 +259,28 @@ local function player_select_node_formspec(player)
 			name .. ";" ..
 			name .. ";]"
 	end
-	edit.reliable_show_formspec(player, "edit:player_select_node", formspec)
+	edit.reliable_show_formspec(player, "edit:player_select_item", formspec)
 end
 
 minetest.register_on_player_receive_fields(function(player, formname, fields)
-	if formname ~= "edit:player_select_node" then return false end
+	if formname ~= "edit:player_select_item" then return false end
 	local d = edit.player_data[player]
 
 	for key, val in pairs(fields) do
 		if key:find(":") or key == "air" then
-			if d.player_select_node_callback then
-				d.player_select_node_callback(player, key)
-				d.player_select_node_callback = nil
-				minetest.close_formspec(player:get_player_name(), "edit:player_select_node")
+			if d.player_select_item_callback then
+				d.player_select_item_callback(player, key)
+				d.player_select_item_callback = nil
+				minetest.close_formspec(player:get_player_name(), "edit:player_select_item")
 			end
 			return true
 		end
 	end
 
 	if fields.quit then
-		if d.player_select_node_callback then
-			d.player_select_node_callback(player, nil)
-			d.player_select_node_callback = nil
+		if d.player_select_item_callback then
+			d.player_select_item_callback(player, nil)
+			d.player_select_item_callback = nil
 		end
 		return true
 	elseif fields.cancel_search then
@@ -285,24 +289,24 @@ minetest.register_on_player_receive_fields(function(player, formname, fields)
 
 	if
 		fields.search_field and 
-		fields.search_field ~= d.player_select_node_search_value
+		fields.search_field ~= d.player_select_item_search_value
 	then
-		d.player_select_node_search_value = fields.search_field
-		player_select_node_formspec(player)
+		d.player_select_item_search_value = fields.search_field
+		player_select_item_formspec(player)
 		return true
 	end
 	return true
 end)
 
-function edit.player_select_node(player, message, callback)
+function edit.player_select_item(player, message, callback)
 	local d = edit.player_data[player]
-	if d.player_select_node_callback then
-		d.player_select_node_callback(player, nil)
+	if d.player_select_item_callback then
+		d.player_select_item_callback(player, nil)
 	end
-	d.player_select_node_callback = callback
-	d.player_select_node_search_value = d.player_select_node_search_value or ""
-	d.player_select_node_message = message
-	player_select_node_formspec(player)
+	d.player_select_item_callback = callback
+	d.player_select_item_search_value = d.player_select_item_search_value or ""
+	d.player_select_item_message = message
+	player_select_item_formspec(player)
 end
 
 edit.modpath = minetest.get_modpath("edit")
@@ -318,3 +322,6 @@ dofile(edit.modpath .. "/circle.lua")
 dofile(edit.modpath .. "/mirror.lua")
 dofile(edit.modpath .. "/screwdriver.lua")
 dofile(edit.modpath .. "/replace.lua")
+dofile(edit.modpath .. "/polygon.lua")
+dofile(edit.modpath .. "/line.lua")
+dofile(edit.modpath .. "/bag.lua")

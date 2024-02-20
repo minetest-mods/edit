@@ -28,6 +28,8 @@ This mod was inspired by the Fill Start and Fill End blocks in Manic Digger.
 | Circle      | edit:circle      | ![](textures/edit_circle.png)      |
 | Mirror      | edit:mirror      | ![](textures/edit_mirror.png)      |
 | Screwdriver | edit:screwdriver | ![](textures/edit_screwdriver.png) |
+| Polygon     | edit:polygon     | ![](textures/edit_polygon.png)     |
+| Bag         | edit:bag         | ![](textures/edit_bag.png)         |
 
 
 ## Dependencies
@@ -39,9 +41,7 @@ None
 
 ### Copy Tool
 
-![figure.png](figure.png)
-
-When the copy tool is placed at opposite corners of an area, they select the area as show in the figure. The copy tool uses the location under the placed position. When the copy tool is placed for the first time, a marker entity is placed. To cancel the copy operation, punch the entity marker. When a copy tool is placed a second time, the selected area is copied and the entity marker is removed.
+When the copy tool is placed at opposite corners of an area, the area is copied. When the copy tool is placed for the first time, a marker entity is placed. To cancel the copy operation, punch the marker. When a copy tool is placed a second time, the selected area is copied and the markers are removed.
 
 
 ### Paste Tool
@@ -51,14 +51,14 @@ The paste tool is used for pasting the area copied by the copy tool or a schemat
 
 ### Fill Tool
 
-The fill tool is used to fill a 3D area with a certain item. Start by placing the fill tool two times at opposite corners of the desired area. The selected area includes the positions of the fill markers themselves as shown in the figure.
+The fill tool is used to fill a 3D area with a certain item. Start by placing the fill tool two times at opposite corners of the desired area.
 
 Once a second fill marker is placed, a dialog appears listing all items in the players inventory. A search field is also available to search all items. Clicking an item will cause it to be used used for filling the selected area. Clicking on a blank inventory slot will cause the selected area to be filled with air. To cancel the fill, press the "X".
 
 
 ### Replace Tool
 
-The replace tool is used to replace certain nodes in a 3D area with a selected item. Start by placing the replace tool two times at opposite corners of the desired area. The selected area includes the positions of the replace markers themselves as shown in the figure.
+The replace tool is used to replace certain nodes in a 3D area with a selected item. Start by placing the replace tool two times at opposite corners of the desired area.
 
 Once a second replace marker is placed, a dialog appears listing all node types in the selected area. Check the nodes that should be replaced and then press the "OK" button to proceed with the next step. Next a dialog will pop up showing all the items in the players inventory. A search field is also available to search all items. Clicking an item will cause it to be used used to replace the nodes that were checked earlier. Clicking on a blank inventory slot will cause the checked nodes to be replaced with air. To cancel the replace, press the "X".
 
@@ -100,6 +100,16 @@ This tool is used to mirror the placement or digging of nodes. Place the tool to
 This tool is used for rotating nodes that support rotation. Right clicking a node with the screwdriver rotates the node around the X or Z axis depending on the player's position. Left clicking a node with the screwdriver rotates the node clockwise around the Y axis. Param2 types `wallmounted`, `facedir`, and `degrotate` are supported. The node is rotated 90 degrees for all param2 types except `degrotate` where the node is rotated by either 1.5 or 15 degrees. If the aux1 key (E) is held while rotating a `degrotate` node, the rotation angle will be increased by 4x.
 
 
+### Polygon Tool
+
+This tool is used to create non-concave polygons in 3D space. Place the polygon tool to create markers. Each marker will create a triangle between itself, the last marker placed, and the first marker placed. The first marker placed will be green. To finish the polygon, place a marker on top of the green marker. After doing so, a dialog will appear to select a node or item to fill the polygon.
+
+
+### Bag
+
+The bag tool is used to place random items from a list of items. Dig (left click) with the bag to open the bag's inventory. Any item from the player inventory can be moved into the bag. The bag has 16 item slots. When placing the bag an item from the bag is randomly chosen to be placed. If a stack of several items is present in the bag, the item will be more likely to be placed than a single item. The probability of being placed is proportional to the item's count divided by the total count of items in the bag. For example, the probability of getting wood would be 75% for a bag with 3 wood and 1 dirt. Bags can be combined with other edit tools, for example, to fill an area with random kinds of dirt.
+
+
 ## Settings
 
 ### edit_paste_preview_max_entities
@@ -114,10 +124,12 @@ The maximum volume of any edit operation. Increase to allow larger operations.
 
 ### edit_fast_node_fill_threshold
 
-When the fill operation has a larger volume then the specified number, fast node fill will be used.
-To disable fast node placement, set the threshold to be equal to the max operation volume.
-To disable slow node placement, set the threshold to 0.
-With fast node placement, callbacks are not called so some nodes might be broken.
+When the fill operation has a larger volume then the specified number, fast node fill will be used. To disable fast node placement, set the threshold to be equal to the max operation volume. To disable slow node placement, set the threshold to 0. With fast node placement, callbacks are not called so some nodes might be broken.
+
+
+### edit_polygon_preview_wire_frame_threshold
+
+If one side of the polygon preview is greater than this setting, a wire frame is used instead of the full preview. The full preview fills the entire polygon with preview entites. If the polygon gets big, the full preview will quickly crash a server. The wire frame preview outlines the triangle componants of the polygon. This setting only affects the preview. The polygon is always completely filled regardless of this setting.
 
 
 ## Privileges

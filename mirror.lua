@@ -21,10 +21,10 @@ local function do_mirror(player, pos, node)
 
 	if d.mirror_mode == "x" then
 		offset.x = -offset.x
-		edit.place_node_like_player(player, node, vector.add(center, offset))
+		edit.place_item_like_player(player, node, vector.add(center, offset))
 	elseif d.mirror_mode == "z" then
 		offset.z = -offset.z
-		edit.place_node_like_player(player, node, vector.add(center, offset))
+		edit.place_item_like_player(player, node, vector.add(center, offset))
 	elseif d.mirror_mode == "xz" then
 		for i = 1, 4 do
 			local axis = "x"
@@ -32,7 +32,7 @@ local function do_mirror(player, pos, node)
 				axis = "z"
 			end
 			offset[axis] = -offset[axis]
-			edit.place_node_like_player(player, node, vector.add(center, offset))
+			edit.place_item_like_player(player, node, vector.add(center, offset))
 		end
 	elseif d.mirror_mode == "eighths" then
 		for i = 1, 8 do
@@ -44,7 +44,7 @@ local function do_mirror(player, pos, node)
 				offset = vector.new(offset.z, offset.y, offset.x)
 			end
 			offset[axis] = -offset[axis]
-			edit.place_node_like_player(player, node, vector.add(center, offset))
+			edit.place_item_like_player(player, node, vector.add(center, offset))
 		end
 	end
 
