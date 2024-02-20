@@ -34,8 +34,8 @@ local function ray_intersects_triangle(ray_origin, ray_vector, vertex_a, vertex_
 end
 
 function edit.calculate_triangle_points(a, b, c)
-	local bounding_box_min = vector.copy(a)
-	local bounding_box_max = vector.copy(a)
+	local bounding_box_min = table.copy(a)
+	local bounding_box_max = table.copy(a)
 	for index, axis in pairs({"x", "y", "z"}) do
 		bounding_box_min[axis] = math.min(a[axis], b[axis], c[axis])
 		bounding_box_max[axis] = math.max(a[axis], b[axis], c[axis])
@@ -63,7 +63,7 @@ function edit.calculate_triangle_points(a, b, c)
 	-- Switch from local to global coordinate system.
 	-- Also works the same to convert local to global coordinate system.
 	local function swap_coord_sys(v)
-		v = vector.copy(v)
+		v = table.copy(v)
 		local old_selected = v[selected_axis]
 		v[selected_axis] = v.y
 		v.y = old_selected

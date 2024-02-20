@@ -4,9 +4,9 @@
 -- using Bresenham's Algorithm
 -- Converted from the original to Lua
 function edit.calculate_line_points(p1, p2)
-	p1 = vector.copy(p1)
-	p2 = vector.copy(p2)
-	local output = {vector.copy(p1)}
+	p1 = table.copy(p1)
+	p2 = table.copy(p2)
+	local output = {table.copy(p1)}
 	local d = vector.apply(vector.subtract(p1, p2), math.abs)
 	local s = vector.new(
 		p2.x > p1.x and 1 or -1,
@@ -30,7 +30,7 @@ function edit.calculate_line_points(p1, p2)
 			end
 			n1 = n1 + 2 * d.y
 			n2 = n2 + 2 * d.z
-			table.insert(output, vector.copy(p1))
+			table.insert(output, table.copy(p1))
 		end
 
 	-- Driving axis is Y-axis
@@ -49,7 +49,7 @@ function edit.calculate_line_points(p1, p2)
 			end
 			n1 = n1 + 2 * d.x
 			n2 = n2 + 2 * d.z
-			table.insert(output, vector.copy(p1))
+			table.insert(output, table.copy(p1))
 		end
 
 	-- Driving axis is Z-axis
@@ -68,7 +68,7 @@ function edit.calculate_line_points(p1, p2)
 			end
 			n1 = n1 + 2 * d.y
 			n2 = n2 + 2 * d.x
-			table.insert(output, vector.copy(p1))
+			table.insert(output, table.copy(p1))
 		end
 	end
 	return output

@@ -165,8 +165,8 @@ local function update_polygon_preview(player, marker_pos_list, show_polygon_hud)
 	local player_data = edit.player_data[player]
 
 	local show_full_preview = true
-	local bounding_box_min = vector.copy(marker_pos_list[1])
-	local bounding_box_max = vector.copy(marker_pos_list[1])
+	local bounding_box_min = table.copy(marker_pos_list[1])
+	local bounding_box_max = table.copy(marker_pos_list[1])
 	for index, axis in pairs({"x", "y", "z"}) do
 		for i, pos in ipairs(marker_pos_list) do
 			bounding_box_min[axis] = math.min(bounding_box_min[axis], pos[axis])
