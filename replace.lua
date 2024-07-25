@@ -187,7 +187,7 @@ minetest.register_on_player_receive_fields(function(player, formname, fields)
 
 	if not fields.continue then return true end
 
-	edit.player_select_item(player, "Select item to replace nodes", function(player, name)
+	edit.player_select_item(player, "Select item to replace nodes", function(player, item_string)
 		if
 			not d.replace1 or not d.replace2 or
 			not d.replace_source_nodes or
@@ -201,10 +201,8 @@ minetest.register_on_player_receive_fields(function(player, formname, fields)
 		local replace_source_nodes = d.replace_source_nodes
 		d.replace_source_nodes = nil
 
+		local name = ItemStack(item_string):get_name()
 		if not name then return end
-
-		local def = minetest.registered_items[name]
-		if not def then return end
 
 		local is_node = minetest.registered_nodes[name]
 
@@ -228,7 +226,7 @@ minetest.register_on_player_receive_fields(function(player, formname, fields)
 					local pos = vector.new(x, y, z)
 					local node = minetest.get_node(pos)
 					local old_name = node.name
-					node.name = name
+					node.name = item_string
 					if replace_source_nodes[old_name] then
 						if is_node then
 							minetest.swap_node(pos, node)
