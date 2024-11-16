@@ -80,8 +80,8 @@ local function on_place(itemstack, player, pointed_thing)
 		end
 	end
 
-	if selected_item then
-		local pos = edit.pointed_thing_to_pos(pointed_thing)
+	local pos = edit.pointed_thing_to_pos(pointed_thing)
+	if selected_item and pos then
 		edit.place_item_like_player(player, {name = selected_item}, pos)
 	end
 end

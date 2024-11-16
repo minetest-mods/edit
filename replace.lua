@@ -226,11 +226,12 @@ minetest.register_on_player_receive_fields(function(player, formname, fields)
 					local pos = vector.new(x, y, z)
 					local node = minetest.get_node(pos)
 					local old_name = node.name
-					node.name = item_string
 					if replace_source_nodes[old_name] then
 						if is_node then
+							node.name = name
 							minetest.swap_node(pos, node)
 						else
+							node.name = item_string
 							edit.place_item_like_player(player, node, pos)
 						end
 					end
