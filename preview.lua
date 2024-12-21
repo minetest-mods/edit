@@ -277,6 +277,15 @@ minetest.register_entity("edit:preview_node", {
 
 local function hide_paste_preview(player)
 	local d = edit.player_data[player]
+
+	player:hud_remove(d.paste_preview_hud)
+	d.paste_preview_hud = nil
+
+	if not d.paste_preview.object:get_pos() then
+		edit.delete_paste_preview(player)
+		return
+	end
+
 	--d.paste_preview:set_properties({is_visible = false})
 	-- This does not work right.
 	-- Some child entities do not become visable when you set is_visable back to true
@@ -285,8 +294,6 @@ local function hide_paste_preview(player)
 		objref:set_properties({is_visible = false})
 	end
 	d.paste_preview.object:set_attach(player)
-	player:hud_remove(d.paste_preview_hud)
-	d.paste_preview_hud = nil
 end
 
 local function show_paste_preview(player)
